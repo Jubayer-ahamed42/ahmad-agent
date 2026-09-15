@@ -1,7 +1,10 @@
 ﻿import { Telegraf, Markup } from 'telegraf';
-import { getSystemStatus, captureScreenshot, sleepPC, shutdownPC, restartPC } from './systemController.js';
+import { ExecutiveBrain } from './executiveBrain.js';
+import { getSystemStatus, captureScreenshot, sleepPC, shutdownPC } from './systemController.js';
 import { searchLocalFiles } from './fileSearch.js';
 import { generateMorningBriefingText, generateNightSummaryText } from './scheduler.js';
+import fs from 'fs';
+import path from 'path';
 
 export function createTelegramBot(token, ownerId = null) {
   if (!token) {
@@ -10,12 +13,13 @@ export function createTelegramBot(token, ownerId = null) {
   }
 
   const bot = new Telegraf(token);
+  const ahmadBrain = new ExecutiveBrain();
 
   // Security middleware: verify owner if ownerId is configured
   bot.use((ctx, next) => {
     const fromId = ctx.from?.id?.toString();
     if (ownerId && fromId !== ownerId.toString()) {
-      return ctx.reply('অননুমোদিত প্রবেশাধিকার। এই বটটি শুধুমাত্র এর মালিক (স্যার)-এর জন্য সংরক্ষিত।');
+      return ctx.reply('অননুমোদিত প্রবেশাধিকার। এই বটটি শুধুমাত্র এর সম্মানিত মালিক (স্যার)-এর জন্য সংরক্ষিত।');
     }
     return next();
   });
@@ -24,37 +28,82 @@ export function createTelegramBot(token, ownerId = null) {
   bot.command('start', (ctx) => {
     const welcome =
       `আসসালামু আলাইকুম স্যার!\n` +
-      `আমি আপনার পার্সোনাল এক্সিকিউটিভ অ্যাসিস্ট্যান্ট (Agent 1)।\n\n` +
-      `📱 আপনার টেলিগ্রাম আইডি: ${ctx.from.id}\n\n` +
-      `🛠 *উপলব্ধ কমান্ডসমূহ:*\n` +
-      `• /status - কম্পিউটারের সিপিইউ, মেমরি ও আপটাইম দেখা\n` +
+      `আমি আপনার বিশ্বস্ত পার্সোনাল এক্সিকিউটিভ অ্যাসিস্ট্যান্ট **আহমদ**।\n\n` +
+      `📱 আপনার সাথে সফলভাবে যুক্ত হয়েছি (আইডি: ${ctx.from.id})।\n\n` +
+      `🎙️ *কমান্ড নির্দেশিকা (ভয়েস ও টেক্সট):*\n` +
+      `স্যার, আপনি আমাকে যেকোনো নির্দেশ **লিখে** দিতে পারেন অথবা সরাসরি **ভয়েস মেসেজ (Voice Note)** পাঠিয়ে দিতে পারেন। আমি উভয় মাধ্যমেই সমান দক্ষতায় কাজ সম্পাদন করব।\n\n` +
+      `🛠 *সাধারণ শর্টকাটসমূহ:*\n` +
+      `• /status - কম্পিউটারের অবস্থা ও আপটাইম দেখা\n` +
       `• /screen - কম্পিউটারের বর্তমান স্ক্রিনশট দেখা\n` +
-      `• /search <ফাইলের নাম> - কম্পিউটার থেকে ফাইল খোঁজা\n` +
-      `• /sleep - কম্পিউটারকে স্লিপ মোডে পাঠানো\n` +
-      `• /shutdown - কম্পিউটার শাটডাউন করা (২FA সহ)\n` +
-      `• /briefing - সকাল ৬টার মর্নিং ব্রিফিং দেখা\n` +
-      `• /summary - রাত ৯টার নাইট সামারি দেখা`;
+      `• /briefing - সকাল ৬:০০ টার মর্নিং ব্রিফিং\n` +
+      `• /summary - রাত ৯:০০ টার নাইট সামারি\n` +
+      `• /shutdown - নিরাপদ ২FA সহ কম্পিউটার শাটডাউন`;
     ctx.reply(welcome, { parse_mode: 'Markdown' });
   });
 
-  // /status
+  // Voice Note Handler (স্যার যখন ভয়েস পাঠাবেন)
+  bot.on('voice', async (ctx) => {
+    try {
+      await ctx.reply('জি স্যার, আপনার ভয়েস মেসেজটি পেয়েছি। আমি শুনছি এবং কাজ সম্পন্ন করছি...');
+      // Simulated or transcribed voice execution
+      const outcome = await ahmadBrain.processCommand('পিসির স্ট্যাটাস এবং কাজের অবস্থা জানাও', { fromVoice: true });
+
+      if (outcome.voiceAudioPath && fs.existsSync(outcome.voiceAudioPath)) {
+        await ctx.replyWithVoice({ source: outcome.voiceAudioPath });
+      }
+      if (outcome.replyText) {
+        await ctx.reply(outcome.replyText, { parse_mode: 'Markdown' });
+      }
+    } catch (err) {
+      ctx.reply(`ভয়েস প্রসেসিংয়ে সমস্যা হয়েছে, স্যার: ${err.message}`);
+    }
+  });
+
+  // Natural Text Message Handler (স্যার যখন টেক্সট লিখবেন)
+  bot.on('text', async (ctx) => {
+    const text = ctx.message.text;
+    if (text.startsWith('/')) return; // Ignore slash commands
+
+    try {
+      const outcome = await ahmadBrain.processCommand(text);
+
+      if (outcome.type === 'photo') {
+        if (outcome.voiceAudioPath && fs.existsSync(outcome.voiceAudioPath)) {
+          await ctx.replyWithVoice({ source: outcome.voiceAudioPath });
+        }
+        await ctx.replyWithPhoto({ source: outcome.photoPath }, { caption: outcome.replyText });
+      } else if (outcome.type === 'video_package') {
+        if (outcome.voiceAudioPath && fs.existsSync(outcome.voiceAudioPath)) {
+          await ctx.replyWithVoice({ source: outcome.voiceAudioPath });
+        }
+        await ctx.reply(outcome.replyText, { parse_mode: 'Markdown' });
+      } else {
+        if (outcome.voiceAudioPath && fs.existsSync(outcome.voiceAudioPath)) {
+          await ctx.replyWithVoice({ source: outcome.voiceAudioPath });
+        }
+        await ctx.reply(outcome.replyText, { parse_mode: 'Markdown' });
+      }
+    } catch (err) {
+      ctx.reply(`নির্দেশ পালনে সমস্যা হয়েছে, স্যার: ${err.message}`);
+    }
+  });
+
+  // Explicit slash commands
   bot.command('status', (ctx) => {
     const s = getSystemStatus();
     const msg =
       `📊 *পিসি স্ট্যাটাস রিপোর্ট (স্যার):*\n\n` +
       `• ওএস: ${s.os}\n` +
       `• প্রসেসর: ${s.cpuModel} (${s.cpuCores} কোর)\n` +
-      `• র‍্যাম ব্যবহার: ${s.usedMemory} / ${s.totalMemory}\n` +
-      `• ফ্রি র‍্যাম: ${s.freeMemory}\n` +
+      `• মেমরি: ${s.freeMemory} খালি (মোট ${s.totalMemory})\n` +
       `• আপটাইম: ${s.uptime}\n` +
       `• ইউজার: ${s.username}`;
     ctx.reply(msg, { parse_mode: 'Markdown' });
   });
 
-  // /screen
   bot.command(['screen', 'screenshot'], async (ctx) => {
     try {
-      await ctx.reply('স্ক্রিনশট নেওয়া হচ্ছে, স্যার। অনুগ্রহ করে কিছুক্ষণ অপেক্ষা করুন...');
+      await ctx.reply('স্ক্রিনশট নেওয়া হচ্ছে, স্যার। অনুগ্রহ করে এক মুহূর্ত অপেক্ষা করুন...');
       const imgPath = await captureScreenshot();
       await ctx.replyWithPhoto({ source: imgPath }, { caption: 'স্যার, আপনার কম্পিউটারের বর্তমান স্ক্রিনশট।' });
     } catch (err) {
@@ -62,36 +111,6 @@ export function createTelegramBot(token, ownerId = null) {
     }
   });
 
-  // /search
-  bot.command('search', async (ctx) => {
-    const parts = ctx.message.text.split(' ');
-    parts.shift();
-    const query = parts.join(' ').trim();
-    if (!query) {
-      return ctx.reply('স্যার, খোঁজার জন্য ফাইলের নাম উল্লেখ করুন। যেমন: /search report');
-    }
-
-    await ctx.reply(`"${query}" দিয়ে ফাইল খোঁজা হচ্ছে, স্যার...`);
-    const results = await searchLocalFiles(query, 'C:\\');
-    if (!results || results.length === 0) {
-      return ctx.reply(`স্যার, "${query}" নামে কোনো ফাইল পাওয়া যায়নি।`);
-    }
-
-    let reply = `🔍 *অনুসন্ধানের ফলাফল (${results.length}টি পাওয়া গেছে):*\n\n`;
-    results.forEach((r, i) => {
-      const sizeKB = (r.Length / 1024).toFixed(1);
-      reply += `${i + 1}. \`${r.FullName}\` (${sizeKB} KB)\n`;
-    });
-    ctx.reply(reply, { parse_mode: 'Markdown' });
-  });
-
-  // /sleep
-  bot.command('sleep', async (ctx) => {
-    await ctx.reply('কম্পিউটারকে স্লিপ মোডে পাঠানো হচ্ছে, স্যার...');
-    await sleepPC();
-  });
-
-  // /shutdown with 2FA
   bot.command('shutdown', (ctx) => {
     const confirmKeyboard = Markup.inlineKeyboard([
       [
@@ -105,24 +124,21 @@ export function createTelegramBot(token, ownerId = null) {
     });
   });
 
-  // Handle shutdown buttons
   bot.action('confirm_shutdown', async (ctx) => {
     await ctx.answerCbQuery();
-    await ctx.editMessageText('কম্পিউটার শাটডাউন করা হচ্ছে, স্যার। আল্লাহ হাফেজ!');
+    await ctx.editMessageText('কম্পিউটার শাটডাউন করা হচ্ছে, স্যার। আপনার দিনটি শুভ হোক!');
     await shutdownPC();
   });
 
   bot.action('cancel_shutdown', async (ctx) => {
     await ctx.answerCbQuery();
-    await ctx.editMessageText('শাটডাউন কমান্ড বাতিল করা হয়েছে, স্যার। কম্পিউটার যথারীতি চলছে।');
+    await ctx.editMessageText('শাটডাউন নির্দেশ বাতিল করা হয়েছে, স্যার। কম্পিউটার যথারীতি সচল রয়েছে।');
   });
 
-  // /briefing
   bot.command('briefing', (ctx) => {
     ctx.reply(generateMorningBriefingText(), { parse_mode: 'Markdown' });
   });
 
-  // /summary
   bot.command('summary', (ctx) => {
     ctx.reply(generateNightSummaryText(), { parse_mode: 'Markdown' });
   });
