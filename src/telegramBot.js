@@ -14,7 +14,7 @@ function escapeHtml(text) {
     .replace(/>/g, '&gt;');
 }
 
-export function createTelegramBot(token, configuredOwnerId = null) {
+export function createTelegramBot(token, configuredOwnerId = null, whatsappService = null) {
   if (!token) {
     console.warn('Telegram Bot Token not provided. Skipping Telegram bot start.');
     return null;
@@ -76,6 +76,10 @@ export function createTelegramBot(token, configuredOwnerId = null) {
       `• /search &lt;নাম&gt; - কম্পিউটার থেকে ফাইল খোঁজা\n` +
       `• /briefing - সকাল ৬:০০ টার মর্নিং ব্রিফিং দেখা\n` +
       `• /summary - রাত ৯:০০ টার নাইট সামারি দেখা\n` +
+      `• /whatsapp_qr - WhatsApp সংযোগ কিউআর কোড দেখা ও স্ক্যান করা\n` +
+      `• /whatsapp_status - WhatsApp লাইভ স্ট্যাটাস ও ক্লায়েন্ট পরিসংখ্যান\n` +
+      `• /whatsapp_reply &lt;on/off&gt; - স্বয়ংক্রিয় সচিব বার্তা নিয়ন্ত্রণ\n` +
+      `• /whatsapp_exclude - পরিবার/ভিআইপি এক্সক্লুশন তালিকা\n` +
       `• /shutdown - নিরাপদ ২FA কনফার্মেশন সহ শাটডাউন`;
 
     try {
@@ -190,6 +194,120 @@ export function createTelegramBot(token, configuredOwnerId = null) {
     await ctx.reply(text, { parse_mode: 'HTML' });
   });
 
+  // /whatsapp_qr
+  bot.command('whatsapp_qr', async (ctx) => {
+    console.log('[Telegram] Executing /whatsapp_qr for Sir');
+    if (!whatsappService) {
+      return ctx.reply('স্যার, WhatsApp সার্ভিস বর্তমানে সংযুক্ত বা সক্রিয় নেই।');
+    }
+
+    const st = whatsappService.getStatus();
+    if (st.status === 'connected') {
+      return ctx.reply('✅ <b>WhatsApp ইতিমধ্যেই সফলভাবে সংযুক্ত রয়েছে!</b>\nস্যার, আপনার নতুন কোনো কিউআর কোড স্ক্যান করার প্রয়োজন নেই। ক্লায়েন্ট বার্তা এলে আমি তাৎক্ষণিক আপনাকে অবহিত করব।', { parse_mode: 'HTML' });
+    }
+
+    const qrPath = whatsappService.getQrImagePath();
+    if (qrPath && fs.existsSync(qrPath)) {
+      try {
+        await ctx.replyWithPhoto(
+          { source: qrPath },
+          {
+            caption:
+              `📱 <b>WhatsApp সংযোগ কিউআর কোড</b>\n\n` +
+              `সম্মানিত স্যার, অনুগ্রহ করে আপনার ফোনের WhatsApp থেকে:\n` +
+              `১. <b>Settings</b> অথবা ৩-ডট মেনুতে চাপ দিন\n` +
+              `২. <b>Linked Devices (সংযুক্ত ডিভাইস)</b> সিলেক্ট করুন\n` +
+              `৩. <b>Link a Device</b> দিয়ে এই কিউআর কোডটি স্ক্যান করে নিন।\n\n` +
+              `স্ক্যান হওয়ামাত্রই আহমদ স্বয়ংক্রিয়ভাবে WhatsApp এ আপনার সহকারী হিসেবে দায়িত্ব গ্রহণ করবে, স্যার।`,
+            parse_mode: 'HTML'
+          }
+        );
+      } catch (err) {
+        console.error('[Telegram] Error sending QR photo:', err.message);
+        await ctx.reply(`কিউআর কোড পাঠাতে সমস্যা হয়েছে, স্যার: ${err.message}`);
+      }
+    } else {
+      await ctx.reply('স্যার, WhatsApp কিউআর কোড প্রস্তুত হচ্ছে। অনুগ্রহ করে ৫-১০ সেকেন্ড পর পুনরায় /whatsapp_qr পাঠান।');
+    }
+  });
+
+  // /whatsapp_status
+  bot.command('whatsapp_status', async (ctx) => {
+    console.log('[Telegram] Executing /whatsapp_status for Sir');
+    if (!whatsappService) {
+      return ctx.reply('স্যার, WhatsApp সার্ভিস কনফিগার করা হয়নি।');
+    }
+
+    const s = whatsappService.getStatus();
+    const statusLabel =
+      s.status === 'connected' ? '✅ সংযুক্ত (Online)' :
+      s.status === 'qr_ready' ? '📱 কিউআর স্ক্যানের অপেক্ষায়' :
+      s.status === 'connecting' ? '🔄 সংযোগ স্থাপন চলছে...' : '❌ বিচ্ছিন্ন (Offline)';
+
+    const msg =
+      `📱 <b>WhatsApp এক্সিকিউটিভ স্ট্যাটাস (স্যার):</b>\n\n` +
+      `• সংযোগ অবস্থা: <b>${statusLabel}</b>\n` +
+      `• স্বয়ংক্রিয় সচিব বার্তা: ${s.autoReplyEnabled ? '✅ সক্রিয় (ON)' : '⏸️ বন্ধ (OFF)'}\n` +
+      `• ক্লায়েন্ট কুলডাউন: <b>${s.cooldownHours} ঘণ্টা</b>\n` +
+      `• স্যার অ্যাক্টিভিটি সুরক্ষা: <b>${s.sirInactivityCooldownHours} ঘণ্টা</b>\n` +
+      `• আজ প্রাপ্ত বার্তা: ${s.receivedToday}টি\n` +
+      `• আজ প্রেরিত সচিব জবাব: ${s.repliedToday}টি\n` +
+      `• ট্র্যাকিংকৃত মোট ক্লায়েন্ট: ${s.totalContactsTracked} জন\n` +
+      `• এক্সক্লুশন তালিকা (পরিবার/ভিআইপি): ${s.excludedCount}টি নম্বর\n\n` +
+      `<i>নিয়ন্ত্রণ শর্টকাট:</i>\n` +
+      `• /whatsapp_qr - কিউআর কোড দেখতে\n` +
+      `• /whatsapp_reply on অথবা off - অটো-রেসপন্ডার নিয়ন্ত্রণ করতে\n` +
+      `• /whatsapp_exclude - নম্বর তালিকা নিয়ন্ত্রণ করতে`;
+
+    await ctx.reply(msg, { parse_mode: 'HTML' });
+  });
+
+  // /whatsapp_reply <on|off>
+  bot.command('whatsapp_reply', async (ctx) => {
+    if (!whatsappService) return ctx.reply('WhatsApp সার্ভিস সক্রিয় নেই, স্যার।');
+    const parts = ctx.message.text.split(' ');
+    const mode = (parts[1] || '').toLowerCase().trim();
+
+    if (mode === 'on') {
+      whatsappService.setAutoReply(true);
+      await ctx.reply('✅ <b>WhatsApp স্বয়ংক্রিয় সচিব বার্তা সক্রিয় করা হয়েছে, স্যার।</b>\nনতুন ক্লায়েন্ট মেসেজ দিলে আহমদ সম্মানজনক জবাব দেবে।', { parse_mode: 'HTML' });
+    } else if (mode === 'off') {
+      whatsappService.setAutoReply(false);
+      await ctx.reply('⏸️ <b>WhatsApp স্বয়ংক্রিয় সচিব বার্তা বন্ধ (Pause) করা হয়েছে, স্যার।</b>\nক্লায়েন্টদের কোনো অটো-রিপ্লাই পাঠানো হবে না, তবে আপনি যথারীতি টেলিগ্রামে তাৎক্ষণিক নোটিফিকেশন পাবেন।', { parse_mode: 'HTML' });
+    } else {
+      const current = whatsappService.getStatus().autoReplyEnabled;
+      await ctx.reply(`স্যার, বর্তমান অবস্থা: <b>${current ? 'চালু (ON)' : 'বন্ধ (OFF)'}</b>।\nপরিবর্তন করতে লিখুন: <code>/whatsapp_reply on</code> অথবা <code>/whatsapp_reply off</code>`, { parse_mode: 'HTML' });
+    }
+  });
+
+  // /whatsapp_exclude <add|remove|list> [number]
+  bot.command('whatsapp_exclude', async (ctx) => {
+    if (!whatsappService) return ctx.reply('WhatsApp সার্ভিস সক্রিয় নেই, স্যার।');
+    const parts = ctx.message.text.split(' ');
+    const action = (parts[1] || '').toLowerCase().trim();
+    const num = (parts[2] || '').trim();
+
+    if (action === 'add' && num) {
+      whatsappService.addExcludedNumber(num);
+      await ctx.reply(`🛡️ <b>নম্বরটি এক্সক্লুশন তালিকায় সফলভাবে যুক্ত হয়েছে:</b> <code>${escapeHtml(num)}</code>\nএই নম্বরে আহমদ কখনো কোনো স্বয়ংক্রিয় সচিব বার্তা দেবে না, স্যার।`, { parse_mode: 'HTML' });
+    } else if (action === 'remove' && num) {
+      const removed = whatsappService.removeExcludedNumber(num);
+      if (removed) {
+        await ctx.reply(`নম্বরটি এক্সক্লুশন তালিকা থেকে অপসারিত হয়েছে: <code>${escapeHtml(num)}</code>, স্যার।`, { parse_mode: 'HTML' });
+      } else {
+        await ctx.reply(`নম্বরটি তালিকায় পাওয়া যায়নি, স্যার।`);
+      }
+    } else {
+      const list = whatsappService.getExcludedNumbers();
+      if (list.length === 0) {
+        await ctx.reply('📋 <b>এক্সক্লুশন তালিকা (পরিবার/ভিআইপি):</b>\nবর্তমানে কোনো নম্বর যুক্ত নেই, স্যার।\n\nযুক্ত করতে লিখুন: <code>/whatsapp_exclude add 88017xxxxxxxx</code>', { parse_mode: 'HTML' });
+      } else {
+        const formatted = list.map((n, i) => `${i + 1}. <code>+${escapeHtml(n)}</code>`).join('\n');
+        await ctx.reply(`📋 <b>এক্সক্লুশন তালিকা (${list.length}টি সংরক্ষিত):</b>\n\n${formatted}\n\nবাদ দিতে: <code>/whatsapp_exclude remove <number></code>`, { parse_mode: 'HTML' });
+      }
+    }
+  });
+
   // Voice Note Handler (Full Gemini 3.6 Flash Multimodal Audio STT)
   bot.on('voice', async (ctx) => {
     console.log('[Telegram] Received voice message from Sir. Transcribing with Gemini 3.6 Flash...');
@@ -218,10 +336,20 @@ export function createTelegramBot(token, configuredOwnerId = null) {
           try { await ctx.replyWithVoice({ source: outcome.voiceAudioPath }); } catch (e) {}
         }
         await ctx.reply(outcome.replyText, { parse_mode: 'HTML' });
-        await ctx.replyWithDocument({
-          source: outcome.documentPath,
-          filename: outcome.documentName
-        });
+        try {
+          console.log(`[Telegram] Streaming document to Sir: ${outcome.documentPath}`);
+          await ctx.replyWithDocument({
+            source: fs.createReadStream(outcome.documentPath),
+            filename: outcome.documentName
+          });
+          console.log('[Telegram] Document delivered successfully!');
+        } catch (docErr) {
+          console.error('[Telegram] replyWithDocument error, trying telegram.sendDocument fallback:', docErr.message);
+          await ctx.telegram.sendDocument(ctx.chat.id, {
+            source: fs.createReadStream(outcome.documentPath),
+            filename: outcome.documentName
+          });
+        }
       } else if (outcome.type === 'photo') {
         if (outcome.voiceAudioPath && fs.existsSync(outcome.voiceAudioPath)) {
           try { await ctx.replyWithVoice({ source: outcome.voiceAudioPath }); } catch (e) {}
@@ -305,11 +433,20 @@ export function createTelegramBot(token, configuredOwnerId = null) {
           } catch (e) {}
         }
         await ctx.reply(outcome.replyText, { parse_mode: 'HTML' });
-        await ctx.replyWithDocument({
-          source: outcome.documentPath,
-          filename: outcome.documentName
-        });
-        console.log(`[Telegram] Document "${outcome.documentName}" sent successfully to Sir!`);
+        try {
+          console.log(`[Telegram] Streaming document to Sir: ${outcome.documentPath}`);
+          await ctx.replyWithDocument({
+            source: fs.createReadStream(outcome.documentPath),
+            filename: outcome.documentName
+          });
+          console.log(`[Telegram] Document "${outcome.documentName}" delivered to Sir!`);
+        } catch (docErr) {
+          console.error('[Telegram] replyWithDocument error, trying fallback:', docErr.message);
+          await ctx.telegram.sendDocument(ctx.chat.id, {
+            source: fs.createReadStream(outcome.documentPath),
+            filename: outcome.documentName
+          });
+        }
       } else if (outcome.type === 'photo') {
         if (outcome.voiceAudioPath && fs.existsSync(outcome.voiceAudioPath)) {
           try {

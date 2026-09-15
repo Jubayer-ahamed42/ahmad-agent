@@ -1,6 +1,12 @@
-﻿node_modules/
+node_modules/
 .env
 *.log
 backups/
 screenshots/
 dist/
+auth_info_baileys/
+whatsapp_qr.png
+whatsapp_cooldowns.json
+received_files/
+audio_cache/
+

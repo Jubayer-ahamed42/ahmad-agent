@@ -16,9 +16,19 @@ const TRANSLITERATION_MAP = {
   'ডাউনলোড': ['download', 'downloads'],
   'ডেস্কটপ': ['desktop'],
   'ডকুমেন্ট': ['document', 'documents'],
+  'দাওয়া': ['dawah', 'dawa'],
+  'দাওয়াহ': ['dawah', 'dawa'],
+  'কারিকুলাম': ['curriculum', 'কারিকুলাম'],
+  'আলেমদের': ['alem', 'আলেম'],
   'ভিডিও': ['video', 'videos', '.mp4'],
   'ছবি': ['image', 'photo', 'picture', '.png', '.jpg', '.jpeg']
 };
+
+const STOP_WORDS = new Set([
+  'আমার', 'তোমার', 'জি', 'ড্রাইভ', 'ড্রাইভে', 'দেখো', 'একটা', 'একটি', 'অপশন', 'আছে', 'সেখানে',
+  'নামে', 'তাতে', 'তা', 'আমাকে', 'পাঠাও', 'তো', 'দাও', 'খোঁজো', 'খুঁজে', 'সার্চ', 'search',
+  'send', 'pdf', 'পিডিএফ', 'file', 'ফাইল', 'ফাইলটি', 'ফাইলসমূহ', 'দিয়ে', 'করো', 'এর', 'সেটা'
+]);
 
 export function extractSearchTokens(rawQuery) {
   const queryLower = (rawQuery || '').toLowerCase();
@@ -32,14 +42,14 @@ export function extractSearchTokens(rawQuery) {
     }
   }
 
-  // 2. Remove common Bengali conversational stop words
-  const cleaned = queryLower
-    .replace(/[এএকটিএকটানামেআছেতাতেতামাকেপাঠাওদাওখোঁজোখুঁজেসার্চsearchsendpdfপিডিএফfileফাইলসমূহ]/g, ' ')
-    .replace(/[^\w\u0980-\u09FF\s.-]/g, ' ');
-
-  cleaned.split(/\s+/).filter(w => w.length >= 2).forEach(w => {
-    tokens.add(w.toLowerCase());
-  });
+  // 2. Extract meaningful words that are not stop-words
+  const words = queryLower.split(/[\s,।!?\-_\/\\:;'"()[\]{}]+/);
+  for (const w of words) {
+    const trimmed = w.trim();
+    if (trimmed.length >= 2 && !STOP_WORDS.has(trimmed)) {
+      tokens.add(trimmed);
+    }
+  }
 
   return Array.from(tokens);
 }
@@ -129,14 +139,17 @@ export async function searchLocalFiles(query, customDir = null) {
 
           let score = 0;
           for (const token of tokens) {
-            if (token === '.pdf') continue; // don't count generic extension as title match
+            if (token === '.pdf') continue;
             if (nameLower.includes(token)) {
-              score += 10;
+              score += 15;
+            }
+            if (pathLower.includes(token)) {
+              score += 5;
             }
           }
 
           if (subfolderHint && pathLower.includes(subfolderHint)) {
-            score += 6;
+            score += 10;
           }
 
           if (score > 0) {

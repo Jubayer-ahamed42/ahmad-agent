@@ -1,0 +1,9 @@
+{
+  "autoReplyEnabled": true,
+  "cooldownHours": 2,
+  "sirInactivityCooldownHours": 4,
+  "debounceSeconds": 3.5,
+  "excludedNumbers": [
+    "8801999999999"
+  ]
+}
