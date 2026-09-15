@@ -1,9 +1,11 @@
 ﻿import fs from 'fs';
 import path from 'path';
+import { VideoProducer } from './videoProducer.js';
 
 export class SocialMediaManager {
   constructor() {
-    this.name = 'Social Media Manager';
+    this.name = 'Social Media & Video Production Specialist';
+    this.videoProducer = new VideoProducer();
     this.inboxCountToday = 0;
     this.commentsCountToday = 0;
   }
@@ -33,12 +35,17 @@ export class SocialMediaManager {
     );
   }
 
-  // 3. Daily social media summary for Ahmad's 9:00 PM briefing
+  // 3. Complete Video Production (1, 2, 3, or 5 Minutes)
+  async createVideoPackage(topic, durationMinutes = 1) {
+    return await this.videoProducer.produceCompleteVideoPackage(topic, durationMinutes);
+  }
+
+  // 4. Daily social media summary for Ahmad's 9:00 PM briefing
   getDailySocialSummary() {
     return {
       inboxCount: this.inboxCountToday,
       commentsCount: this.commentsCountToday,
-      summaryText: `• ফেসবুক পেজ: ${this.commentsCountToday}টি কমেন্ট ও ${this.inboxCountToday}টি মেসেজ হ্যান্ডেল করা হয়েছে।`
+      summaryText: `• সোশ্যাল মিডিয়া: ${this.commentsCountToday}টি কমেন্ট হ্যান্ডেল ও ভিডিও প্রোডাকশন পাইপলাইন সক্রিয় রয়েছে।`
     };
   }
 }
