@@ -1,45 +1,40 @@
-﻿export class CodeExpert {
+﻿import { ArchitectureEngine } from './architectureEngine.js';
+import { CodeAuditor } from './codeAuditor.js';
+import { ProjectScaffolder } from './projectScaffolder.js';
+
+export class CodeExpert {
   constructor() {
-    this.name = 'Senior Software & Web Development Expert';
+    this.name = 'Principal Software Architect & Lead Engineer (20+ Years Experience)';
+    this.architect = new ArchitectureEngine();
+    this.auditor = new CodeAuditor();
+    this.scaffolder = new ProjectScaffolder();
   }
 
-  // 1. Plan project architecture
-  createArchitecturePlan(projectName, techStack = ['Next.js', 'Node.js', 'PostgreSQL']) {
-    return {
-      projectName,
-      techStack,
-      structure: [
-        'src/app - Frontend pages & routing',
-        'src/components - Reusable UI widgets & design system',
-        'src/server - API controllers & business logic',
-        'src/database - Schemas, migrations & ORM models',
-        'tests/ - Unit and end-to-end integration tests'
-      ],
-      recommendations: [
-        'Use TypeScript for strict type safety.',
-        'Implement automated CI/CD checks before git commits.',
-        'Use environment variables (.env) for database URLs and secrets.'
-      ]
-    };
+  // 1. Enterprise System Architecture Design
+  createArchitecturePlan(projectName, options = {}) {
+    return this.architect.designSystemArchitecture({
+      name: projectName,
+      domain: options.domain || 'FinTech / E-Commerce / Enterprise SaaS',
+      scale: options.scale || '100k+ Active Users',
+      platform: options.platform || 'Web & Mobile'
+    });
   }
 
-  // 2. Automated Code Review
-  reviewCodeSnippet(codeString) {
-    const issues = [];
-    if (codeString.includes('var ')) {
-      issues.push("Consider replacing 'var' with 'const' or 'let' for modern block scoping.");
-    }
-    if (codeString.includes('console.log(')) {
-      issues.push("Ensure debug console.log statements are stripped in production builds.");
-    }
-    if (codeString.includes('password') || codeString.includes('secret')) {
-      issues.push("Potential hardcoded credential detected. Move to .env file.");
-    }
+  // 2. Production Database Schema Design
+  generateDatabaseSchema(entities) {
+    return this.architect.generatePrismaSchema(entities);
+  }
 
+  // 3. Veteran Level Code & Security Audit
+  reviewCodeSnippet(codeString, language = 'javascript') {
+    return this.auditor.auditCodebase(codeString, language);
+  }
+
+  // 4. Production Scaffolding (Docker & CI/CD)
+  generateDevOpsAssets(stack = 'node') {
     return {
-      passed: issues.length === 0,
-      issuesCount: issues.length,
-      suggestions: issues
+      dockerfile: this.scaffolder.generateProductionDockerfile(stack),
+      ciPipeline: this.scaffolder.generateGitHubActionsCi()
     };
   }
 }
