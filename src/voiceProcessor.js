@@ -1,4 +1,4 @@
-﻿import { EdgeTTS } from 'node-edge-tts';
+import { EdgeTTS } from 'node-edge-tts';
 import { exec } from 'child_process';
 import path from 'path';
 import fs from 'fs';
@@ -27,17 +27,20 @@ export class VoiceProcessor {
     });
   }
 
-  // 2. Synthesize Ahmad\'s Royal 50-Year Veteran Voice in Bengali
+  // 2. Synthesize Ahmad's Royal 50-Year Veteran Voice in Bengali
   async speakToSir(text, filename = null) {
-    const tts = new EdgeTTS({
-      voice: 'bn-BD-PradeepNeural', // Dignified, calm male tone
-      lang: 'bn-BD',
-      outputFormat: 'audio-24khz-48kbitrate-mono-mp3'
-    });
+    try {
+      const tts = new EdgeTTS();
+      tts.voice = 'bn-BD-PradeepNeural'; // Dignified, calm male Bengali tone
+      tts.rate = '-5%';                  // সামান্য ধীর গতি — গাম্ভীর্যপূর্ণ উচ্চারণ
 
-    const outName = filename || `ahmad_voice_${Date.now()}.mp3`;
-    const outputPath = path.join(this.audioDir, outName);
-    await tts.ttsPromise(text, outputPath);
-    return outputPath;
+      const outName = filename || `ahmad_voice_${Date.now()}.mp3`;
+      const outputPath = path.join(this.audioDir, outName);
+      await tts.ttsPromise(text, outputPath);
+      return outputPath;
+    } catch (e) {
+      console.error('[VoiceProcessor] EdgeTTS error:', e.message);
+      return null; // voice না হলেও text reply আসবে
+    }
   }
 }

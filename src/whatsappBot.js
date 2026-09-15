@@ -30,6 +30,8 @@ export class WhatsAppService {
     this.status = 'disconnected'; // 'disconnected' | 'connecting' | 'qr_ready' | 'connected'
     this.currentQrRaw = null;
     this.telegramNotifier = options.telegramNotifier || null;
+    this.retryCount = 0;    // সংযোগ পুনঃপ্রচেষ্টা গণনাকারী
+    this.maxRetries = 15;   // সর্বোচ্চ ১৫ বার চেষ্টার পর থামবে
 
     this.pendingBatches = new Map();
     this.stats = {
@@ -357,6 +359,7 @@ export class WhatsAppService {
 
         if (connection === 'open') {
           this.status = 'connected';
+          this.retryCount = 0; // সফল সংযোগে counter রিসেট
           this.stats.connectedAt = new Date().toISOString();
           console.log('✅ [WhatsApp] Multi-Device connection OPEN! Ahmad is now live on WhatsApp.');
 
@@ -385,6 +388,7 @@ export class WhatsAppService {
 
           if (statusCode === DisconnectReason.loggedOut && wasConnected) {
             console.log('[WhatsApp] Logged out from phone by user. Wiping credentials for fresh pairing...');
+            this.retryCount = 0; // লগআউট হলে counter রিসেট
             try {
               if (fs.existsSync(this.authDir)) {
                 fs.rmSync(this.authDir, { recursive: true, force: true });
@@ -392,31 +396,49 @@ export class WhatsAppService {
             } catch (e) {}
             if (this.telegramNotifier) {
               await this.telegramNotifier(
-                '⚠️ <b>WhatsApp সেশন সমাপ্ত হয়েছে।</b>\nনতুন করে সংযোগ করতে টেলিগ্রামে <code>/whatsapp_qr</code> পাঠান, স্যার।'
+                '⚠️ <b>WhatsApp সেশন সমাপ্ত হয়েছে।</b>\nনতুন করে সংযোগ করতে টেলিগ্রামে <code>/whatsapp_qr</code> পাঠান, স্যার।'
               );
             }
           }
 
-          // Always automatically restart to generate fresh QR code and accept pairing
-          console.log('[WhatsApp] Re-initializing socket in 3 seconds for fresh pairing / QR refresh...');
-          setTimeout(() => this.start(), 3000);
+          // Max retry limit চেক — ১৫ বার ব্যর্থ হলে থামবে
+          this.retryCount++;
+          if (this.retryCount > this.maxRetries) {
+            console.error(`[WhatsApp] Max retry limit (${this.maxRetries}) reached. Giving up. Restart Ahmad manually.`);
+            if (this.telegramNotifier) {
+              await this.telegramNotifier(
+                `🔴 <b>WhatsApp সংযোগ ব্যর্থ হয়েছে!</b>\n\n${this.maxRetries} বার চেষ্টার পরেও সংযোগ হয়নি। আহমদকে ম্যানুয়ালি পুনরায় চালু করুন, স্যার।\n<code>start.bat</code> চালিয়ে দিন।`
+              );
+            }
+            return; // ← restart করবে না
+          }
+
+          // Exponential backoff: ৩s, ৬s, ৯s... সর্বোচ্চ ৩০s
+          const delayMs = Math.min(3000 * this.retryCount, 30000);
+          console.log(`[WhatsApp] Re-initializing socket in ${delayMs / 1000}s (attempt ${this.retryCount}/${this.maxRetries})...`);
+          setTimeout(() => this.start(), delayMs);
         }
       });
 
       this.sock.ev.on('messages.upsert', async ({ messages, type }) => {
         if (!messages || messages.length === 0) return;
+        console.log(`[WhatsApp Event] Received ${messages.length} message(s) (type: ${type})`);
 
         for (const m of messages) {
           try {
             if (!m || !m.key) continue;
             const jid = m.key.remoteJid;
-
-            // Basic filters
             if (!jid) continue;
-            if (jid.endsWith('@g.us')) continue; // Ignore groups
-            if (jid.includes('@broadcast') || jid.includes('@newsletter') || jid === 'status@broadcast') continue; // Ignore broadcast
-            if (!jid.endsWith('@s.whatsapp.net')) continue; // Must be 1-on-1 private user
 
+            // 1. Ignore groups & broadcast / channels / status
+            if (jid.endsWith('@g.us')) continue;
+            if (jid.includes('@broadcast') || jid.includes('@newsletter') || jid === 'status@broadcast') continue;
+
+            // 2. Must be 1-on-1 private chat (supports @s.whatsapp.net and modern @lid non-contact IDs)
+            const isPrivate = jid.endsWith('@s.whatsapp.net') || jid.endsWith('@lid');
+            if (!isPrivate) continue;
+
+            // Extract identifier
             const phoneNum = jid.split('@')[0];
 
             // If Sir sent message from his phone
@@ -425,14 +447,23 @@ export class WhatsAppService {
               continue;
             }
 
-            // Client message
-            if (this.isProtocolOrSystemMessage(m)) continue;
-
+            // Extract actual text / media content
             const text = this.extractMessageText(m);
-            if (!text || text.trim() === '') continue;
+            if (!text || text.trim() === '') {
+              // No user text or media (pure encryption sync or protocol packet) -> skip
+              continue;
+            }
+
+            // Ignore messages older than 1 hour to avoid replying to ancient synced history
+            const nowSec = Math.floor(Date.now() / 1000);
+            const msgTimestamp = Number(m.messageTimestamp || 0);
+            if (msgTimestamp && (nowSec - msgTimestamp > 3600)) {
+              console.log(`[WhatsApp] Ignoring old synced message from ${phoneNum} (${nowSec - msgTimestamp}s old): "${text}"`);
+              continue;
+            }
 
             const pushName = m.pushName || 'সম্মানিত ক্লায়েন্ট';
-            console.log(`[WhatsApp] Incoming private message from ${pushName} (+${phoneNum}): ${text}`);
+            console.log(`[WhatsApp] Incoming private message from ${pushName} (+${phoneNum}): "${text}"`);
             this.enqueueMessage(phoneNum, jid, pushName, text);
           } catch (err) {
             console.error('[WhatsApp] Error processing incoming message:', err);
@@ -446,28 +477,33 @@ export class WhatsAppService {
     }
   }
 
-  isProtocolOrSystemMessage(m) {
-    if (!m || !m.message) return true;
-    const msg = m.message;
-    return !!(
-      msg.protocolMessage ||
-      msg.senderKeyDistributionMessage ||
-      msg.fastRatchetKeySenderKeyDistributionMessage ||
-      msg.reactionMessage ||
-      msg.keepInChatMessage
-    );
-  }
-
   extractMessageText(m) {
     if (!m || !m.message) return '';
-    const msg =
-      m.message.ephemeralMessage?.message ||
-      m.message.viewOnceMessage?.message ||
-      m.message.viewOnceMessageV2?.message ||
-      m.message;
+    let msg = m.message;
 
-    if (msg.conversation) return msg.conversation;
-    if (msg.extendedTextMessage?.text) return msg.extendedTextMessage.text;
+    // Unwrap any container wrappers (ephemeral, viewOnce, documentWithCaption, etc.)
+    while (
+      msg &&
+      (msg.ephemeralMessage ||
+        msg.viewOnceMessage ||
+        msg.viewOnceMessageV2 ||
+        msg.documentWithCaptionMessage)
+    ) {
+      msg =
+        msg.ephemeralMessage?.message ||
+        msg.viewOnceMessage?.message ||
+        msg.viewOnceMessageV2?.message ||
+        msg.documentWithCaptionMessage?.message ||
+        msg;
+    }
+
+    if (!msg) return '';
+    if (typeof msg.conversation === 'string' && msg.conversation.trim()) {
+      return msg.conversation.trim();
+    }
+    if (typeof msg.extendedTextMessage?.text === 'string' && msg.extendedTextMessage.text.trim()) {
+      return msg.extendedTextMessage.text.trim();
+    }
     if (msg.imageMessage?.caption) return `[ছবি] ${msg.imageMessage.caption}`;
     if (msg.imageMessage) return '[ছবি / Image]';
     if (msg.videoMessage?.caption) return `[ভিডিও] ${msg.videoMessage.caption}`;
@@ -498,7 +534,7 @@ export class WhatsAppService {
 
     if (!this.sock) {
       await this.start();
-      await new Promise((r) => setTimeout(r, 2500));
+      await new Promise((r) => setTimeout(r, 6000));
     }
 
     try {
@@ -509,7 +545,7 @@ export class WhatsAppService {
     } catch (err) {
       console.error('[WhatsApp] requestPairingCode error, retrying with fresh socket:', err.message);
       await this.start();
-      await new Promise((r) => setTimeout(r, 2500));
+      await new Promise((r) => setTimeout(r, 6000));
       const retryCode = await this.sock.requestPairingCode(cleanNum);
       const retryFormatted = retryCode?.match(/.{1,4}/g)?.join('-') || retryCode;
       return retryFormatted;
@@ -562,12 +598,5 @@ export class WhatsAppService {
   }
 }
 
-// Backward compatibility function
-export function handleIncomingClientMessage({ senderName, messageText }) {
-  const service = new WhatsAppService();
-  return {
-    replyText: service.getSecretaryReplyText(),
-    timestamp: new Date().toISOString()
-  };
-}
-
+// NOTE: handleIncomingClientMessage() পুরনো stub ফাংশন ছিল — সরিয়ে দেওয়া হয়েছে।
+// সকল WhatsApp বার্তা প্রক্রিয়াকরণ এখন WhatsAppService.enqueueMessage() → flushBatch() দিয়ে হয়।

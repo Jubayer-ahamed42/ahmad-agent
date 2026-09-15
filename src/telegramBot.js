@@ -14,6 +14,46 @@ function escapeHtml(text) {
     .replace(/>/g, '&gt;');
 }
 
+// ─── Shared outcome sender ─────────────────────────────────────────────────
+// Voice ও Text handler উভয়েই এই একটি ফাংশন ব্যবহার করে — duplicate code নেই।
+async function sendOutcomeToSir(ctx, outcome) {
+  if (!outcome) return;
+
+  // Voice reply (যদি থাকে)
+  if (outcome.voiceAudioPath && fs.existsSync(outcome.voiceAudioPath)) {
+    try { await ctx.replyWithVoice({ source: outcome.voiceAudioPath }); } catch (e) {}
+  }
+
+  if (outcome.type === 'document') {
+    await ctx.reply(outcome.replyText, { parse_mode: 'HTML' });
+    const docCaption = `📖 <b>${escapeHtml(outcome.documentName)}</b>`;
+    try {
+      await ctx.replyWithDocument({
+        source: fs.createReadStream(outcome.documentPath),
+        filename: outcome.documentName
+      }, {
+        caption: docCaption,
+        parse_mode: 'HTML'
+      });
+    } catch (docErr) {
+      console.error('[Telegram] replyWithDocument fallback:', docErr.message);
+      await ctx.telegram.sendDocument(ctx.chat.id, {
+        source: fs.createReadStream(outcome.documentPath),
+        filename: outcome.documentName
+      }, {
+        caption: docCaption,
+        parse_mode: 'HTML'
+      });
+    }
+  } else if (outcome.type === 'photo') {
+    await ctx.replyWithPhoto({ source: outcome.photoPath }, { caption: outcome.replyText });
+  } else {
+    // 'text' | 'video_package' | অন্য যেকোনো type
+    await ctx.reply(outcome.replyText);
+  }
+}
+// ───────────────────────────────────────────────────────────────────────────
+
 export function createTelegramBot(token, configuredOwnerId = null, whatsappService = null) {
   if (!token) {
     console.warn('Telegram Bot Token not provided. Skipping Telegram bot start.');
@@ -378,55 +418,15 @@ export function createTelegramBot(token, configuredOwnerId = null, whatsappServi
         return ctx.reply('স্যার, আপনার ভয়েস অডিওটি স্পষ্টভাবে বুঝতে পারিনি। অনুগ্রহ করে আরেকবার কথা বলে পাঠানোর বিনীত অনুরোধ করছি, স্যার।');
       }
 
-      await ctx.reply(`🎙️ <b>আপনার কণ্ঠের নির্দেশ:</b>\n<i>"${escapeHtml(transcribedText)}"</i>\n\nজি স্যার, আদেশটি পেয়েছি। এখনই সম্পন্ন করছি...`, { parse_mode: 'HTML' });
+      await ctx.reply(`🎙️ <b>আপনার কণ্ঠের নির্দেশ:</b>\n<i>"${escapeHtml(transcribedText)}"</i>\n\nজি স্যার, আদেশটি পেয়েছি। এখনই সম্পন্ন করছি...`, { parse_mode: 'HTML' });
 
       // 3. Execute transcribed command
       const outcome = await ahmadBrain.processCommand(transcribedText, { fromVoice: true });
+      await sendOutcomeToSir(ctx, outcome);
 
-      if (outcome.type === 'document') {
-        if (outcome.voiceAudioPath && fs.existsSync(outcome.voiceAudioPath)) {
-          try { await ctx.replyWithVoice({ source: outcome.voiceAudioPath }); } catch (e) {}
-        }
-        await ctx.reply(outcome.replyText, { parse_mode: 'HTML' });
-        try {
-          console.log(`[Telegram] Streaming document to Sir: ${outcome.documentPath}`);
-          await ctx.replyWithDocument({
-            source: fs.createReadStream(outcome.documentPath),
-            filename: outcome.documentName
-          }, {
-            caption: `📖 <b>${escapeHtml(outcome.documentName)}</b>`,
-            parse_mode: 'HTML'
-          });
-          console.log('[Telegram] Document delivered successfully!');
-        } catch (docErr) {
-          console.error('[Telegram] replyWithDocument error, trying telegram.sendDocument fallback:', docErr.message);
-          await ctx.telegram.sendDocument(ctx.chat.id, {
-            source: fs.createReadStream(outcome.documentPath),
-            filename: outcome.documentName
-          }, {
-            caption: `📖 <b>${escapeHtml(outcome.documentName)}</b>`,
-            parse_mode: 'HTML'
-          });
-        }
-      } else if (outcome.type === 'photo') {
-        if (outcome.voiceAudioPath && fs.existsSync(outcome.voiceAudioPath)) {
-          try { await ctx.replyWithVoice({ source: outcome.voiceAudioPath }); } catch (e) {}
-        }
-        await ctx.replyWithPhoto({ source: outcome.photoPath }, { caption: outcome.replyText });
-      } else if (outcome.type === 'video_package') {
-        if (outcome.voiceAudioPath && fs.existsSync(outcome.voiceAudioPath)) {
-          try { await ctx.replyWithVoice({ source: outcome.voiceAudioPath }); } catch (e) {}
-        }
-        await ctx.reply(outcome.replyText);
-      } else {
-        if (outcome.voiceAudioPath && fs.existsSync(outcome.voiceAudioPath)) {
-          try { await ctx.replyWithVoice({ source: outcome.voiceAudioPath }); } catch (e) {}
-        }
-        await ctx.reply(outcome.replyText);
-      }
     } catch (err) {
       console.error('[Telegram] Voice processing error:', err);
-      await ctx.reply(`ভয়েস নির্দেশ পালনে সমস্যা হয়েছে, স্যার: ${err.message}`);
+      await ctx.reply(`ভয়েস নির্দেশ পালনে সমস্যা হয়েছে, স্যার: ${err.message}`);
     }
   });
 
@@ -483,59 +483,10 @@ export function createTelegramBot(token, configuredOwnerId = null, whatsappServi
     console.log(`[Telegram] Processing natural text from Sir: "${text}"`);
     try {
       const outcome = await ahmadBrain.processCommand(text);
-
-      if (outcome.type === 'document') {
-        if (outcome.voiceAudioPath && fs.existsSync(outcome.voiceAudioPath)) {
-          try {
-            await ctx.replyWithVoice({ source: outcome.voiceAudioPath });
-          } catch (e) {}
-        }
-        await ctx.reply(outcome.replyText, { parse_mode: 'HTML' });
-        try {
-          console.log(`[Telegram] Streaming document to Sir: ${outcome.documentPath}`);
-          await ctx.replyWithDocument({
-            source: fs.createReadStream(outcome.documentPath),
-            filename: outcome.documentName
-          }, {
-            caption: `📖 <b>${escapeHtml(outcome.documentName)}</b>`,
-            parse_mode: 'HTML'
-          });
-          console.log(`[Telegram] Document "${outcome.documentName}" delivered to Sir!`);
-        } catch (docErr) {
-          console.error('[Telegram] replyWithDocument error, trying fallback:', docErr.message);
-          await ctx.telegram.sendDocument(ctx.chat.id, {
-            source: fs.createReadStream(outcome.documentPath),
-            filename: outcome.documentName
-          }, {
-            caption: `📖 <b>${escapeHtml(outcome.documentName)}</b>`,
-            parse_mode: 'HTML'
-          });
-        }
-      } else if (outcome.type === 'photo') {
-        if (outcome.voiceAudioPath && fs.existsSync(outcome.voiceAudioPath)) {
-          try {
-            await ctx.replyWithVoice({ source: outcome.voiceAudioPath });
-          } catch (e) {}
-        }
-        await ctx.replyWithPhoto({ source: outcome.photoPath }, { caption: outcome.replyText });
-      } else if (outcome.type === 'video_package') {
-        if (outcome.voiceAudioPath && fs.existsSync(outcome.voiceAudioPath)) {
-          try {
-            await ctx.replyWithVoice({ source: outcome.voiceAudioPath });
-          } catch (e) {}
-        }
-        await ctx.reply(outcome.replyText);
-      } else {
-        if (outcome.voiceAudioPath && fs.existsSync(outcome.voiceAudioPath)) {
-          try {
-            await ctx.replyWithVoice({ source: outcome.voiceAudioPath });
-          } catch (e) {}
-        }
-        await ctx.reply(outcome.replyText);
-      }
+      await sendOutcomeToSir(ctx, outcome);
     } catch (err) {
       console.error('[Telegram] Text command error:', err);
-      await ctx.reply(`নির্দেশ পালনে সমস্যা হয়েছে, স্যার: ${err.message}`);
+      await ctx.reply(`নির্দেশ পালনে সমস্যা হয়েছে, স্যার: ${err.message}`);
     }
   });
 

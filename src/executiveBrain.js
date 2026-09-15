@@ -116,9 +116,24 @@ export class ExecutiveBrain {
       lower.includes('পাঠাও') ||
       lower.includes('দাও') ||
       lower.includes('সেন্ড') ||
+      lower.includes('পাঠিয়ে') ||
       lower.includes('send');
 
-    if (isFileRequest && (lower.includes('খোঁজো') || lower.includes('খুঁজে') || lower.includes('search') || isSendAction || lower.includes('আছে'))) {
+    // শর্ত শিথিল করা হয়েছে: file request থাকলে এবং
+    // send/search/exists intent থাকলে অথবা শুধু send/search থাকলেই search করো
+    const shouldSearch = isFileRequest && (
+      isSendAction ||
+      lower.includes('খোঁজো') ||
+      lower.includes('খুঁজে') ||
+      lower.includes('search') ||
+      lower.includes('আছে') ||
+      lower.includes('কোথায়') ||
+      lower.includes('দেখাও') ||
+      lower.includes('বের করো') ||
+      lower.includes('নিয়ে আসো')
+    );
+
+    if (shouldSearch) {
       console.log(`[Executive Brain] Executing Smart File Search for Sir: "${input}"`);
       const results = await searchLocalFiles(input);
 
@@ -203,7 +218,7 @@ export class ExecutiveBrain {
       `Always address Sir respectfully as 'স্যার'. Maintain a calm, loyal, dignified, and exceptionally wise Bengali tone. ` +
       `Keep responses concise, actionable, and elegant. Never break character.`;
 
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -230,7 +245,7 @@ export class ExecutiveBrain {
 
     try {
       const audioBase64 = Buffer.from(audioBuffer).toString('base64');
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

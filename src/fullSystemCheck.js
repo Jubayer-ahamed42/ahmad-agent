@@ -1,9 +1,9 @@
-﻿import { getSystemStatus, captureScreenshot } from './systemController.js';
+import { getSystemStatus, captureScreenshot } from './systemController.js';
 import { searchLocalFiles } from './fileSearch.js';
 import { generateMorningBriefingText, generateNightSummaryText } from './scheduler.js';
 import { runNightlyBackup } from './backup.js';
 import { VoiceProcessor } from './voiceProcessor.js';
-import { handleIncomingClientMessage } from './whatsappBot.js';
+import { WhatsAppService } from './whatsappBot.js';
 import { SubagentManager } from './subagentManager.js';
 import fs from 'fs';
 
@@ -65,8 +65,9 @@ try {
 
 // 7. WhatsApp Client Auto-Responder
 try {
-  const wa = handleIncomingClientMessage({ senderName: 'কাস্টমার', messageText: 'ওয়েবসাইট চার্জ কত?' });
-  const hasSir = wa.replyText.includes('স্যার');
+  const wa = new WhatsAppService();
+  const replyText = wa.getSecretaryReplyText();
+  const hasSir = replyText.includes('স্যার');
   results.push({ test: 'WhatsApp Client Auto-Responder ("স্যার" etiquette)', status: hasSir ? 'PASS' : 'FAIL', detail: `Replied with proper etiquette: ${hasSir}` });
 } catch (e) {
   results.push({ test: 'WhatsApp Bot', status: 'FAIL', detail: e.message });

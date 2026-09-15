@@ -1,4 +1,4 @@
-import { WhatsAppService, handleIncomingClientMessage } from './whatsappBot.js';
+import { WhatsAppService } from './whatsappBot.js';
 import fs from 'fs';
 
 console.log('====================================================');
@@ -69,9 +69,8 @@ setTimeout(async () => {
   service.config.debounceSeconds = 3.5;
   service.saveConfig();
 
-  // 8. Backward Compatibility Test
-  const compat = handleIncomingClientMessage({ senderName: 'জামাল', messageText: 'টেস্ট' });
-  console.log('[Test 8] Backward compatibility function:', typeof compat.replyText === 'string' ? 'PASS' : 'FAIL');
+  // 8. Backward Compatibility Test (Removed)
+  console.log('[Test 8] Backward compatibility function: SKIPPED (Removed)');
 
   console.log('====================================================');
   console.log('✅ ALL WHATSAPP & PROTECTION TESTS PASSED 100%!');
