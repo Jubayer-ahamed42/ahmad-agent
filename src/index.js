@@ -99,6 +99,9 @@ console.log(`\n💻 System Ready on: ${status.hostname} (${status.os})`);
 console.log(`⏱️  Uptime: ${status.uptime} | Free RAM: ${status.freeMemory}`);
 console.log('🌟 Ahmad is standing by for Sir.\n');
 
+// Keep Node.js process alive indefinitely
+setInterval(() => {}, 1000 * 60 * 60);
+
 // Graceful shutdown
 process.once('SIGINT', () => {
   if (bot) bot.stop('SIGINT');

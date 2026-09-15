@@ -378,13 +378,13 @@ export class WhatsAppService {
         }
 
         if (connection === 'close') {
+          const wasConnected = this.status === 'connected';
           this.status = 'disconnected';
           const statusCode = lastDisconnect?.error?.output?.statusCode;
-          const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
-          console.log(`[WhatsApp] Connection closed (status: ${statusCode}). Reconnecting: ${shouldReconnect}`);
+          console.log(`[WhatsApp] Connection closed (status: ${statusCode}, wasConnected: ${wasConnected})`);
 
-          if (statusCode === DisconnectReason.loggedOut) {
-            console.log('[WhatsApp] Logged out. Wiping credentials for fresh QR pairing...');
+          if (statusCode === DisconnectReason.loggedOut && wasConnected) {
+            console.log('[WhatsApp] Logged out from phone by user. Wiping credentials for fresh pairing...');
             try {
               if (fs.existsSync(this.authDir)) {
                 fs.rmSync(this.authDir, { recursive: true, force: true });
@@ -392,13 +392,14 @@ export class WhatsAppService {
             } catch (e) {}
             if (this.telegramNotifier) {
               await this.telegramNotifier(
-                '⚠️ <b>WhatsApp সেশন সমাপ্ত (Logged Out) হয়েছে।</b>\nনতুন করে সংযোগ করতে টেলিগ্রামে <code>/whatsapp_qr</code> পাঠান, স্যার।'
+                '⚠️ <b>WhatsApp সেশন সমাপ্ত হয়েছে।</b>\nনতুন করে সংযোগ করতে টেলিগ্রামে <code>/whatsapp_qr</code> পাঠান, স্যার।'
               );
             }
-          } else {
-            // Transient disconnect -> reconnect after 5s
-            setTimeout(() => this.start(), 5000);
           }
+
+          // Always automatically restart to generate fresh QR code and accept pairing
+          console.log('[WhatsApp] Re-initializing socket in 3 seconds for fresh pairing / QR refresh...');
+          setTimeout(() => this.start(), 3000);
         }
       });
 
@@ -484,12 +485,35 @@ export class WhatsAppService {
     return '';
   }
 
-  // Telegram helper methods
   getQrImagePath() {
     if (fs.existsSync(this.qrImagePath)) {
       return this.qrImagePath;
     }
     return null;
+  }
+
+  async requestPairingCode(phoneNum) {
+    const cleanNum = phoneNum.replace(/\D/g, '');
+    if (!cleanNum) throw new Error('ফোন নম্বরটি সঠিক নয়');
+
+    if (!this.sock) {
+      await this.start();
+      await new Promise((r) => setTimeout(r, 2500));
+    }
+
+    try {
+      const code = await this.sock.requestPairingCode(cleanNum);
+      const formatted = code?.match(/.{1,4}/g)?.join('-') || code;
+      console.log(`[WhatsApp] Pairing code generated for +${cleanNum}: ${formatted}`);
+      return formatted;
+    } catch (err) {
+      console.error('[WhatsApp] requestPairingCode error, retrying with fresh socket:', err.message);
+      await this.start();
+      await new Promise((r) => setTimeout(r, 2500));
+      const retryCode = await this.sock.requestPairingCode(cleanNum);
+      const retryFormatted = retryCode?.match(/.{1,4}/g)?.join('-') || retryCode;
+      return retryFormatted;
+    }
   }
 
   getStatus() {

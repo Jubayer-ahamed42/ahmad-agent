@@ -77,6 +77,7 @@ export function createTelegramBot(token, configuredOwnerId = null, whatsappServi
       `• /briefing - সকাল ৬:০০ টার মর্নিং ব্রিফিং দেখা\n` +
       `• /summary - রাত ৯:০০ টার নাইট সামারি দেখা\n` +
       `• /whatsapp_qr - WhatsApp সংযোগ কিউআর কোড দেখা ও স্ক্যান করা\n` +
+      `• /whatsapp_pair &lt;নম্বর&gt; - ক্যামেরা ছাড়া পেয়ারিং কোড দিয়ে সংযোগ\n` +
       `• /whatsapp_status - WhatsApp লাইভ স্ট্যাটাস ও ক্লায়েন্ট পরিসংখ্যান\n` +
       `• /whatsapp_reply &lt;on/off&gt; - স্বয়ংক্রিয় সচিব বার্তা নিয়ন্ত্রণ\n` +
       `• /whatsapp_exclude - পরিবার/ভিআইপি এক্সক্লুশন তালিকা\n` +
@@ -228,6 +229,57 @@ export function createTelegramBot(token, configuredOwnerId = null, whatsappServi
       }
     } else {
       await ctx.reply('স্যার, WhatsApp কিউআর কোড প্রস্তুত হচ্ছে। অনুগ্রহ করে ৫-১০ সেকেন্ড পর পুনরায় /whatsapp_qr পাঠান।');
+    }
+  });
+
+  // /whatsapp_pair [number]
+  bot.command(['whatsapp_pair', 'pair'], async (ctx) => {
+    console.log('[Telegram] Executing /whatsapp_pair for Sir');
+    if (!whatsappService) {
+      return ctx.reply('WhatsApp সার্ভিস সক্রিয় নেই, স্যার।');
+    }
+
+    const st = whatsappService.getStatus();
+    if (st.status === 'connected') {
+      return ctx.reply('✅ <b>WhatsApp ইতিমধ্যেই সফলভাবে সংযুক্ত রয়েছে!</b>\nনতুন করে কোড নেওয়ার প্রয়োজন নেই, স্যার।', { parse_mode: 'HTML' });
+    }
+
+    const parts = ctx.message.text.split(' ');
+    parts.shift();
+    let num = parts.join('').trim().replace(/\D/g, '');
+
+    if (!num) {
+      return ctx.reply(
+        `📱 <b>WhatsApp পেয়ারিং কোড (ক্যামেরা ছাড়া সংযোগ):</b>\n\n` +
+        `স্যার, ক্যামেরা দিয়ে কিউআর স্ক্যান করতে সমস্যা হলে আপনি <b>৮ সংখ্যার পেয়ারিং কোড</b> দিয়ে তাৎক্ষণিক WhatsApp যুক্ত করতে পারেন।\n\n` +
+        `দয়া করে আপনার নম্বর লিখে কমান্ড পাঠান:\n` +
+        `<code>/whatsapp_pair 017xxxxxxxx</code>\n` +
+        `অথবা:\n` +
+        `<code>/whatsapp_pair 88017xxxxxxxx</code>`,
+        { parse_mode: 'HTML' }
+      );
+    }
+
+    if (!num.startsWith('880') && num.startsWith('01')) {
+      num = '88' + num;
+    }
+
+    await ctx.reply(`🔄 <b>+${num}</b> নম্বরের জন্য পেয়ারিং কোড তৈরি করা হচ্ছে, স্যার...`);
+    try {
+      const code = await whatsappService.requestPairingCode(num);
+      const msg =
+        `🔑 <b>আপনার WhatsApp পেয়ারিং কোড:</b>\n\n` +
+        `👉 <code>${code}</code> 👈\n\n` +
+        `📲 <b>ফোনে যেভাবে দিবেন:</b>\n` +
+        `১. WhatsApp > <b>Linked Devices (সংযুক্ত ডিভাইস)</b>-এ যান\n` +
+        `২. <b>Link a Device</b> চাপুন\n` +
+        `৩. নিচে <b>"Link with phone number instead"</b> এ ট্যাপ করুন\n` +
+        `৪. স্ক্রিনে কোড চাইলে উপরের <code>${code}</code> কোডটি টাইপ করুন।\n\n` +
+        `কোডটি দেওয়া মাত্রই কোনো ক্যামেরা স্ক্যান ছাড়া তৎক্ষণাৎ আহমদ যুক্ত হয়ে যাবে, স্যার!`;
+      await ctx.reply(msg, { parse_mode: 'HTML' });
+    } catch (err) {
+      console.error('[Telegram] Pairing code error:', err.message);
+      await ctx.reply(`পেয়ারিং কোড তৈরিতে সমস্যা হয়েছে, স্যার: ${err.message}\nকয়েক সেকেন্ড পর পুনরায় চেষ্টা করুন।`);
     }
   });
 
