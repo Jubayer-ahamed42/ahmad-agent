@@ -6,7 +6,7 @@ import { generateMorningBriefingText, generateNightSummaryText } from './schedul
 import fs from 'fs';
 import path from 'path';
 
-export function createTelegramBot(token, ownerId = null) {
+export function createTelegramBot(token, configuredOwnerId = null) {
   if (!token) {
     console.warn('Telegram Bot Token not provided. Skipping Telegram bot start.');
     return null;
@@ -14,39 +14,68 @@ export function createTelegramBot(token, ownerId = null) {
 
   const bot = new Telegraf(token);
   const ahmadBrain = new ExecutiveBrain();
+  let currentOwnerId = configuredOwnerId;
 
   // Security middleware: verify owner if ownerId is configured
-  bot.use((ctx, next) => {
+  bot.use(async (ctx, next) => {
     const fromId = ctx.from?.id?.toString();
-    if (ownerId && fromId !== ownerId.toString()) {
+
+    // If owner not yet set, first person to send /start becomes the owner!
+    if (!currentOwnerId && ctx.message?.text === '/start') {
+      currentOwnerId = fromId;
+      console.log(`🔒 [Security] Owner locked to Telegram ID: ${currentOwnerId}`);
+      
+      // Update .env file permanently
+      try {
+        const envPath = path.join(process.cwd(), '.env');
+        let envContent = fs.readFileSync(envPath, 'utf-8');
+        envContent = envContent.replace(/TELEGRAM_OWNER_ID=.*/, `TELEGRAM_OWNER_ID=${currentOwnerId}`);
+        fs.writeFileSync(envPath, envContent, 'utf-8');
+      } catch (e) {
+        console.error('Failed to write TELEGRAM_OWNER_ID to .env:', e.message);
+      }
+    }
+
+    if (currentOwnerId && fromId !== currentOwnerId.toString()) {
       return ctx.reply('অননুমোদিত প্রবেশাধিকার। এই বটটি শুধুমাত্র এর সম্মানিত মালিক (স্যার)-এর জন্য সংরক্ষিত।');
     }
+
     return next();
   });
 
   // /start command
-  bot.command('start', (ctx) => {
+  bot.command('start', async (ctx) => {
     const welcome =
       `আসসালামু আলাইকুম স্যার!\n` +
       `আমি আপনার বিশ্বস্ত পার্সোনাল এক্সিকিউটিভ অ্যাসিস্ট্যান্ট **আহমদ**।\n\n` +
-      `📱 আপনার সাথে সফলভাবে যুক্ত হয়েছি (আইডি: ${ctx.from.id})।\n\n` +
-      `🎙️ *কমান্ড নির্দেশিকা (ভয়েস ও টেক্সট):*\n` +
-      `স্যার, আপনি আমাকে যেকোনো নির্দেশ **লিখে** দিতে পারেন অথবা সরাসরি **ভয়েস মেসেজ (Voice Note)** পাঠিয়ে দিতে পারেন। আমি উভয় মাধ্যমেই সমান দক্ষতায় কাজ সম্পাদন করব।\n\n` +
-      `🛠 *সাধারণ শর্টকাটসমূহ:*\n` +
-      `• /status - কম্পিউটারের অবস্থা ও আপটাইম দেখা\n` +
-      `• /screen - কম্পিউটারের বর্তমান স্ক্রিনশট দেখা\n` +
-      `• /briefing - সকাল ৬:০০ টার মর্নিং ব্রিফিং\n` +
-      `• /summary - রাত ৯:০০ টার নাইট সামারি\n` +
-      `• /shutdown - নিরাপদ ২FA সহ কম্পিউটার শাটডাউন`;
+      `📱 আপনার টেলিগ্রাম আইডি সফলভাবে শনাক্ত ও লক করা হয়েছে (${ctx.from.id})।\n\n` +
+      `🎙️ *কমান্ড নির্দেশিকা (ভয়েস ও টেক্সট):*\n` +
+      `স্যার, আপনি আমাকে যেকোনো নির্দেশ **লিখে** দিতে পারেন অথবা সরাসরি **ভয়েস মেসেজ (Voice Note)** পাঠিয়ে দিতে পারেন। আমি উভয় মাধ্যমেই সমান দক্ষতায় কাজ করব।\n\n` +
+      `🛠 *উপলব্ধ শর্টকাটসমূহ:*\n` +
+      `• /status - কম্পিউটারের সিপিইউ, মেমরি ও আপটাইম দেখা\n` +
+      `• /screen - কম্পিউটারের বর্তমান লাইভ স্ক্রিনশট দেখা\n` +
+      `• /search <নাম> - কম্পিউটার থেকে ফাইল খোঁজা\n` +
+      `• /briefing - সকাল ৬:০০ টার মর্নিং ব্রিফিং দেখা\n` +
+      `• /summary - রাত ৯:০০ টার নাইট সামারি দেখা\n` +
+      `• /shutdown - নিরাপদ ২FA কনফার্মেশন সহ শাটডাউন`;
+
+    try {
+      const voicePath = await ahmadBrain.voiceProcessor.speakToSir('আসসালামু আলাইকুম স্যার। আমি আপনার বিশ্বস্ত সহকারী আহমদ। আপনার আদেশের অপেক্ষায় আছি, স্যার।');
+      if (fs.existsSync(voicePath)) {
+        await ctx.replyWithVoice({ source: voicePath });
+      }
+    } catch (e) {
+      console.error('Voice greeting error:', e.message);
+    }
+
     ctx.reply(welcome, { parse_mode: 'Markdown' });
   });
 
   // Voice Note Handler (স্যার যখন ভয়েস পাঠাবেন)
   bot.on('voice', async (ctx) => {
     try {
-      await ctx.reply('জি স্যার, আপনার ভয়েস মেসেজটি পেয়েছি। আমি শুনছি এবং কাজ সম্পন্ন করছি...');
-      // Simulated or transcribed voice execution
-      const outcome = await ahmadBrain.processCommand('পিসির স্ট্যাটাস এবং কাজের অবস্থা জানাও', { fromVoice: true });
+      await ctx.reply('জি স্যার, আপনার ভয়েস মেসেজটি পেয়েছি। আমি শুনছি এবং কাজ সম্পাদন করছি...');
+      const outcome = await ahmadBrain.processCommand('পিসির বর্তমান অবস্থা ও কাজের স্ট্যাটাস জানাও', { fromVoice: true });
 
       if (outcome.voiceAudioPath && fs.existsSync(outcome.voiceAudioPath)) {
         await ctx.replyWithVoice({ source: outcome.voiceAudioPath });
@@ -55,7 +84,7 @@ export function createTelegramBot(token, ownerId = null) {
         await ctx.reply(outcome.replyText, { parse_mode: 'Markdown' });
       }
     } catch (err) {
-      ctx.reply(`ভয়েস প্রসেসিংয়ে সমস্যা হয়েছে, স্যার: ${err.message}`);
+      ctx.reply(`ভয়েস প্রসেসিংয়ে সমস্যা হয়েছে, স্যার: ${err.message}`);
     }
   });
 
@@ -97,7 +126,7 @@ export function createTelegramBot(token, ownerId = null) {
       `• প্রসেসর: ${s.cpuModel} (${s.cpuCores} কোর)\n` +
       `• মেমরি: ${s.freeMemory} খালি (মোট ${s.totalMemory})\n` +
       `• আপটাইম: ${s.uptime}\n` +
-      `• ইউজার: ${s.username}`;
+      `• কম্পিউটার: ${s.hostname}`;
     ctx.reply(msg, { parse_mode: 'Markdown' });
   });
 
@@ -109,6 +138,28 @@ export function createTelegramBot(token, ownerId = null) {
     } catch (err) {
       ctx.reply(`স্ক্রিনশট নিতে সমস্যা হয়েছে, স্যার: ${err.message}`);
     }
+  });
+
+  bot.command('search', async (ctx) => {
+    const parts = ctx.message.text.split(' ');
+    parts.shift();
+    const query = parts.join(' ').trim();
+    if (!query) {
+      return ctx.reply('স্যার, খোঁজার জন্য ফাইলের নাম উল্লেখ করুন। যেমন: /search report');
+    }
+
+    await ctx.reply(`"${query}" দিয়ে ফাইল খোঁজা হচ্ছে, স্যার...`);
+    const results = await searchLocalFiles(query, 'C:\\Personal Agent');
+    if (!results || results.length === 0) {
+      return ctx.reply(`স্যার, "${query}" নামে কোনো ফাইল পাওয়া যায়নি।`);
+    }
+
+    let reply = `🔍 *অনুসন্ধানের ফলাফল (${results.length}টি পাওয়া গেছে):*\n\n`;
+    results.forEach((r, i) => {
+      const sizeKB = (r.Length / 1024).toFixed(1);
+      reply += `${i + 1}. \`${r.FullName}\` (${sizeKB} KB)\n`;
+    });
+    ctx.reply(reply, { parse_mode: 'Markdown' });
   });
 
   bot.command('shutdown', (ctx) => {
