@@ -393,6 +393,9 @@ export function createTelegramBot(token, configuredOwnerId = null, whatsappServi
           await ctx.replyWithDocument({
             source: fs.createReadStream(outcome.documentPath),
             filename: outcome.documentName
+          }, {
+            caption: `📖 <b>${escapeHtml(outcome.documentName)}</b>`,
+            parse_mode: 'HTML'
           });
           console.log('[Telegram] Document delivered successfully!');
         } catch (docErr) {
@@ -400,6 +403,9 @@ export function createTelegramBot(token, configuredOwnerId = null, whatsappServi
           await ctx.telegram.sendDocument(ctx.chat.id, {
             source: fs.createReadStream(outcome.documentPath),
             filename: outcome.documentName
+          }, {
+            caption: `📖 <b>${escapeHtml(outcome.documentName)}</b>`,
+            parse_mode: 'HTML'
           });
         }
       } else if (outcome.type === 'photo') {
@@ -490,6 +496,9 @@ export function createTelegramBot(token, configuredOwnerId = null, whatsappServi
           await ctx.replyWithDocument({
             source: fs.createReadStream(outcome.documentPath),
             filename: outcome.documentName
+          }, {
+            caption: `📖 <b>${escapeHtml(outcome.documentName)}</b>`,
+            parse_mode: 'HTML'
           });
           console.log(`[Telegram] Document "${outcome.documentName}" delivered to Sir!`);
         } catch (docErr) {
@@ -497,6 +506,9 @@ export function createTelegramBot(token, configuredOwnerId = null, whatsappServi
           await ctx.telegram.sendDocument(ctx.chat.id, {
             source: fs.createReadStream(outcome.documentPath),
             filename: outcome.documentName
+          }, {
+            caption: `📖 <b>${escapeHtml(outcome.documentName)}</b>`,
+            parse_mode: 'HTML'
           });
         }
       } else if (outcome.type === 'photo') {
