@@ -1,10 +1,18 @@
-﻿import { Telegraf, Markup } from 'telegraf';
+import { Telegraf, Markup } from 'telegraf';
 import { ExecutiveBrain } from './executiveBrain.js';
 import { getSystemStatus, captureScreenshot, sleepPC, shutdownPC } from './systemController.js';
 import { searchLocalFiles } from './fileSearch.js';
 import { generateMorningBriefingText, generateNightSummaryText } from './scheduler.js';
 import fs from 'fs';
 import path from 'path';
+
+function escapeHtml(text) {
+  if (!text) return '';
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
 
 export function createTelegramBot(token, configuredOwnerId = null) {
   if (!token) {
@@ -29,11 +37,9 @@ export function createTelegramBot(token, configuredOwnerId = null) {
     const fromId = ctx.from?.id?.toString();
     const text = ctx.message?.text || '';
 
-    // If owner not yet set, first person to send /start becomes the owner!
     if (!currentOwnerId && text === '/start') {
       currentOwnerId = fromId;
       console.log(`🔒 [Security] Owner locked to Telegram ID: ${currentOwnerId}`);
-      
       try {
         const envPath = path.join(process.cwd(), '.env');
         let envContent = fs.readFileSync(envPath, 'utf-8');
@@ -52,7 +58,7 @@ export function createTelegramBot(token, configuredOwnerId = null) {
   });
 
   // ==========================================
-  // EXPLICIT SLASH COMMANDS (REGISTERED FIRST)
+  // EXPLICIT SLASH COMMANDS
   // ==========================================
 
   // /start command
@@ -60,14 +66,14 @@ export function createTelegramBot(token, configuredOwnerId = null) {
     console.log('[Telegram] Executing /start command for Sir');
     const welcome =
       `আসসালামু আলাইকুম স্যার!\n` +
-      `আমি আপনার বিশ্বস্ত পার্সোনাল এক্সিকিউটিভ অ্যাসিস্ট্যান্ট **আহমদ**।\n\n` +
+      `আমি আপনার বিশ্বস্ত পার্সোনাল এক্সিকিউটিভ অ্যাসিস্ট্যান্ট <b>আহমদ</b>।\n\n` +
       `📱 আপনার টেলিগ্রাম আইডি সফলভাবে শনাক্ত ও লক করা হয়েছে (${ctx.from.id})।\n\n` +
-      `🎙️ *কমান্ড নির্দেশিকা (ভয়েস ও টেক্সট):*\n` +
-      `স্যার, আপনি আমাকে যেকোনো নির্দেশ **লিখে** দিতে পারেন অথবা সরাসরি **ভয়েস মেসেজ (Voice Note)** পাঠিয়ে দিতে পারেন। আমি উভয় মাধ্যমেই সমান দক্ষতায় কাজ করব।\n\n` +
-      `🛠 *উপলব্ধ শর্টকাটসমূহ:*\n` +
+      `🎙️ <b>কমান্ড নির্দেশিকা (ভয়েস ও টেক্সট):</b>\n` +
+      `স্যার, আপনি আমাকে যেকোনো নির্দেশ <b>লিখে</b> দিতে পারেন অথবা সরাসরি <b>ভয়েস মেসেজ (Voice Note)</b> পাঠিয়ে দিতে পারেন। আমি উভয় মাধ্যমেই সমান দক্ষতায় কাজ করব।\n\n` +
+      `🛠 <b>উপলব্ধ শর্টকাটসমূহ:</b>\n` +
       `• /status - কম্পিউটারের সিপিইউ, মেমরি ও আপটাইম দেখা\n` +
       `• /screen - কম্পিউটারের বর্তমান লাইভ স্ক্রিনশট দেখা\n` +
-      `• /search <নাম> - কম্পিউটার থেকে ফাইল খোঁজা\n` +
+      `• /search &lt;নাম&gt; - কম্পিউটার থেকে ফাইল খোঁজা\n` +
       `• /briefing - সকাল ৬:০০ টার মর্নিং ব্রিফিং দেখা\n` +
       `• /summary - রাত ৯:০০ টার নাইট সামারি দেখা\n` +
       `• /shutdown - নিরাপদ ২FA কনফার্মেশন সহ শাটডাউন`;
@@ -81,7 +87,7 @@ export function createTelegramBot(token, configuredOwnerId = null) {
       console.error('Voice greeting error:', e.message);
     }
 
-    await ctx.reply(welcome, { parse_mode: 'Markdown' });
+    await ctx.reply(welcome, { parse_mode: 'HTML' });
   });
 
   // /status
@@ -89,14 +95,15 @@ export function createTelegramBot(token, configuredOwnerId = null) {
     console.log('[Telegram] Executing /status command for Sir');
     const s = getSystemStatus();
     const msg =
-      `📊 *পিসি স্ট্যাটাস রিপোর্ট (স্যার):*\n\n` +
-      `• ওএস: ${s.os}\n` +
-      `• প্রসেসর: ${s.cpuModel} (${s.cpuCores} কোর)\n` +
-      `• মেমরি: ${s.freeMemory} খালি (মোট ${s.totalMemory})\n` +
-      `• র‍্যাম ব্যবহৃত: ${s.usedMemory}\n` +
-      `• আপটাইম: ${s.uptime}\n` +
-      `• কম্পিউটার: ${s.hostname}`;
-    await ctx.reply(msg, { parse_mode: 'Markdown' });
+      `📊 <b>পিসি স্ট্যাটাস রিপোর্ট (স্যার):</b>\n\n` +
+      `• ওএস: ${escapeHtml(s.os)}\n` +
+      `• প্রসেসর: ${escapeHtml(s.cpuModel)} (${escapeHtml(s.cpuCores)} কোর)\n` +
+      `• মেমরি: ${escapeHtml(s.freeMemory)} খালি (মোট ${escapeHtml(s.totalMemory)})\n` +
+      `• র‍্যাম ব্যবহৃত: ${escapeHtml(s.usedMemory)}\n` +
+      `• আপটাইম: ${escapeHtml(s.uptime)}\n` +
+      `• কম্পিউটার: ${escapeHtml(s.hostname)}\n` +
+      `• ইউজার: ${escapeHtml(s.username)}`;
+    await ctx.reply(msg, { parse_mode: 'HTML' });
   });
 
   // /screen or /screenshot
@@ -121,21 +128,22 @@ export function createTelegramBot(token, configuredOwnerId = null) {
     parts.shift();
     const query = parts.join(' ').trim();
     if (!query) {
-      return ctx.reply('স্যার, খোঁজার জন্য ফাইলের নাম উল্লেখ করুন। যেমন: /search report');
+      return ctx.reply('স্যার, খোঁজার জন্য ফাইলের নাম উল্লেখ করুন। যেমন: /search lethe বা /search ভাইরাস');
     }
 
-    await ctx.reply(`"${query}" দিয়ে ফাইল খোঁজা হচ্ছে, স্যার...`);
-    const results = await searchLocalFiles(query, 'C:\\Personal Agent');
+    await ctx.reply(`"${query}" দিয়ে গুগল ড্রাইভ ও লোকাল পিসিতে অনুসন্ধান চালানো হচ্ছে, স্যার...`);
+    const results = await searchLocalFiles(query);
     if (!results || results.length === 0) {
-      return ctx.reply(`স্যার, "${query}" নামে কোনো ফাইল পাওয়া যায়নি।`);
+      return ctx.reply(`স্যার, "${query}" সংক্রান্ত কোনো ফাইল গুগল ড্রাইভ বা পিসিতে পাওয়া যায়নি।`);
     }
 
-    let reply = `🔍 *অনুসন্ধানের ফলাফল (${results.length}টি পাওয়া গেছে):*\n\n`;
+    let reply = `🔍 <b>অনুসন্ধানের ফলাফল (${results.length}টি পাওয়া গেছে):</b>\n\n`;
     results.forEach((r, i) => {
       const sizeKB = (r.Length / 1024).toFixed(1);
-      reply += `${i + 1}. \`${r.FullName}\` (${sizeKB} KB)\n`;
+      reply += `${i + 1}. 📄 <b>${escapeHtml(r.Name)}</b> (${sizeKB} KB)\n   <code>${escapeHtml(r.FullName)}</code>\n\n`;
     });
-    await ctx.reply(reply, { parse_mode: 'Markdown' });
+    reply += `স্যার, কোনো ফাইল সরাসরি টেলিগ্রামে পেতে চাইলে বলুন: "[ফাইলের নাম] পাঠিয়ে দাও"।`;
+    await ctx.reply(reply, { parse_mode: 'HTML' });
   });
 
   // /shutdown with 2FA
@@ -147,8 +155,8 @@ export function createTelegramBot(token, configuredOwnerId = null) {
         Markup.button.callback('❌ না, বাতিল করো', 'cancel_shutdown')
       ]
     ]);
-    await ctx.reply('⚠️ *নিরাপত্তা সতর্কতা:*\nস্যার, আপনি কি নিশ্চিতভাবে কম্পিউটার শাটডাউন করতে চান?', {
-      parse_mode: 'Markdown',
+    await ctx.reply('⚠️ <b>নিরাপত্তা সতর্কতা:</b>\nস্যার, আপনি কি নিশ্চিতভাবে কম্পিউটার শাটডাউন করতে চান?', {
+      parse_mode: 'HTML',
       ...confirmKeyboard
     });
   });
@@ -169,43 +177,120 @@ export function createTelegramBot(token, configuredOwnerId = null) {
   // /briefing
   bot.command('briefing', async (ctx) => {
     console.log('[Telegram] Executing /briefing command for Sir');
-    await ctx.reply(generateMorningBriefingText(), { parse_mode: 'Markdown' });
+    const text = generateMorningBriefingText()
+      .replace(/\*(.*?)\*/g, '<b>$1</b>');
+    await ctx.reply(text, { parse_mode: 'HTML' });
   });
 
   // /summary
   bot.command('summary', async (ctx) => {
     console.log('[Telegram] Executing /summary command for Sir');
-    await ctx.reply(generateNightSummaryText(), { parse_mode: 'Markdown' });
+    const text = generateNightSummaryText()
+      .replace(/\*(.*?)\*/g, '<b>$1</b>');
+    await ctx.reply(text, { parse_mode: 'HTML' });
   });
 
-  // ==========================================
-  // NATURAL VOICE & TEXT HANDLERS (AT THE END)
-  // ==========================================
-
-  // Voice Note Handler
+  // Voice Note Handler (Full Gemini 3.6 Flash Multimodal Audio STT)
   bot.on('voice', async (ctx) => {
-    console.log('[Telegram] Received voice message from Sir');
+    console.log('[Telegram] Received voice message from Sir. Transcribing with Gemini 3.6 Flash...');
     try {
-      await ctx.reply('জি স্যার, আপনার ভয়েস মেসেজটি পেয়েছি। আমি শুনছি এবং কাজ সম্পাদন করছি...');
-      const outcome = await ahmadBrain.processCommand('পিসির বর্তমান অবস্থা ও কাজের স্ট্যাটাস জানাও', { fromVoice: true });
+      const fileId = ctx.message.voice.file_id;
+      const fileLink = await ctx.telegram.getFileLink(fileId);
 
-      if (outcome.voiceAudioPath && fs.existsSync(outcome.voiceAudioPath)) {
-        await ctx.replyWithVoice({ source: outcome.voiceAudioPath });
+      // 1. Fetch raw voice note buffer from Telegram
+      const audioRes = await fetch(fileLink.href);
+      const audioBuffer = await audioRes.arrayBuffer();
+
+      // 2. Transcribe voice in Bengali using Gemini 3.6 Flash
+      const transcribedText = await ahmadBrain.transcribeAudio(audioBuffer, 'audio/ogg');
+
+      if (!transcribedText) {
+        return ctx.reply('স্যার, আপনার ভয়েস অডিওটি স্পষ্টভাবে বুঝতে পারিনি। অনুগ্রহ করে আরেকবার কথা বলে পাঠানোর বিনীত অনুরোধ করছি, স্যার।');
       }
-      if (outcome.replyText) {
-        await ctx.reply(outcome.replyText, { parse_mode: 'Markdown' });
+
+      await ctx.reply(`🎙️ <b>আপনার কণ্ঠের নির্দেশ:</b>\n<i>"${escapeHtml(transcribedText)}"</i>\n\nজি স্যার, আদেশটি পেয়েছি। এখনই সম্পন্ন করছি...`, { parse_mode: 'HTML' });
+
+      // 3. Execute transcribed command
+      const outcome = await ahmadBrain.processCommand(transcribedText, { fromVoice: true });
+
+      if (outcome.type === 'document') {
+        if (outcome.voiceAudioPath && fs.existsSync(outcome.voiceAudioPath)) {
+          try { await ctx.replyWithVoice({ source: outcome.voiceAudioPath }); } catch (e) {}
+        }
+        await ctx.reply(outcome.replyText, { parse_mode: 'HTML' });
+        await ctx.replyWithDocument({
+          source: outcome.documentPath,
+          filename: outcome.documentName
+        });
+      } else if (outcome.type === 'photo') {
+        if (outcome.voiceAudioPath && fs.existsSync(outcome.voiceAudioPath)) {
+          try { await ctx.replyWithVoice({ source: outcome.voiceAudioPath }); } catch (e) {}
+        }
+        await ctx.replyWithPhoto({ source: outcome.photoPath }, { caption: outcome.replyText });
+      } else if (outcome.type === 'video_package') {
+        if (outcome.voiceAudioPath && fs.existsSync(outcome.voiceAudioPath)) {
+          try { await ctx.replyWithVoice({ source: outcome.voiceAudioPath }); } catch (e) {}
+        }
+        await ctx.reply(outcome.replyText);
+      } else {
+        if (outcome.voiceAudioPath && fs.existsSync(outcome.voiceAudioPath)) {
+          try { await ctx.replyWithVoice({ source: outcome.voiceAudioPath }); } catch (e) {}
+        }
+        await ctx.reply(outcome.replyText);
       }
     } catch (err) {
       console.error('[Telegram] Voice processing error:', err);
-      await ctx.reply(`ভয়েস প্রসেসিংয়ে সমস্যা হয়েছে, স্যার: ${err.message}`);
+      await ctx.reply(`ভয়েস নির্দেশ পালনে সমস্যা হয়েছে, স্যার: ${err.message}`);
     }
   });
 
-  // Natural Text Message Handler (for natural language instructions)
+  // Handle incoming documents from Sir (Save to PC)
+  bot.on('document', async (ctx) => {
+    try {
+      const doc = ctx.message.document;
+      const fileLink = await ctx.telegram.getFileLink(doc.file_id);
+      const targetDir = 'C:\\Personal Agent\\Agent 1\\received_files';
+      if (!fs.existsSync(targetDir)) fs.mkdirSync(targetDir, { recursive: true });
+
+      const safeName = doc.file_name || `doc_${Date.now()}.bin`;
+      const targetPath = path.join(targetDir, safeName);
+
+      const res = await fetch(fileLink.href);
+      const buffer = Buffer.from(await res.arrayBuffer());
+      fs.writeFileSync(targetPath, buffer);
+
+      await ctx.reply(`📥 <b>ফাইল গ্রহণ ও সংরক্ষণ সম্পন্ন, স্যার!</b>\n\n📄 নাম: <code>${escapeHtml(safeName)}</code>\n💾 লোকেশন: <code>${escapeHtml(targetPath)}</code>\n\nফাইলটি আপনার কম্পিউটারে নিরাপদে সংরক্ষিত রয়েছে।`, { parse_mode: 'HTML' });
+    } catch (e) {
+      ctx.reply(`ফাইল সংরক্ষণে সমস্যা হয়েছে, স্যার: ${e.message}`);
+    }
+  });
+
+  // Handle incoming photos from Sir (Save to PC)
+  bot.on('photo', async (ctx) => {
+    try {
+      const photos = ctx.message.photo;
+      const highestRes = photos[photos.length - 1];
+      const fileLink = await ctx.telegram.getFileLink(highestRes.file_id);
+      const targetDir = 'C:\\Personal Agent\\Agent 1\\received_files';
+      if (!fs.existsSync(targetDir)) fs.mkdirSync(targetDir, { recursive: true });
+
+      const filename = `photo_${Date.now()}.jpg`;
+      const targetPath = path.join(targetDir, filename);
+
+      const res = await fetch(fileLink.href);
+      const buffer = Buffer.from(await res.arrayBuffer());
+      fs.writeFileSync(targetPath, buffer);
+
+      await ctx.reply(`🖼️ <b>ছবি সংরক্ষণ সম্পন্ন, স্যার!</b>\n\n💾 লোকেশন: <code>${escapeHtml(targetPath)}</code>\n\nছবিটি আপনার কম্পিউটারে সংরক্ষিত রাখা হয়েছে।`, { parse_mode: 'HTML' });
+    } catch (e) {
+      ctx.reply(`ছবি সংরক্ষণে সমস্যা হয়েছে, স্যার: ${e.message}`);
+    }
+  });
+
+  // Natural Text Message Handler
   bot.on('text', async (ctx, next) => {
     const text = ctx.message.text;
     if (text.startsWith('/')) {
-      // If it is an unhandled slash command, pass it along
       return next();
     }
 
@@ -213,21 +298,39 @@ export function createTelegramBot(token, configuredOwnerId = null) {
     try {
       const outcome = await ahmadBrain.processCommand(text);
 
-      if (outcome.type === 'photo') {
+      if (outcome.type === 'document') {
         if (outcome.voiceAudioPath && fs.existsSync(outcome.voiceAudioPath)) {
-          await ctx.replyWithVoice({ source: outcome.voiceAudioPath });
+          try {
+            await ctx.replyWithVoice({ source: outcome.voiceAudioPath });
+          } catch (e) {}
+        }
+        await ctx.reply(outcome.replyText, { parse_mode: 'HTML' });
+        await ctx.replyWithDocument({
+          source: outcome.documentPath,
+          filename: outcome.documentName
+        });
+        console.log(`[Telegram] Document "${outcome.documentName}" sent successfully to Sir!`);
+      } else if (outcome.type === 'photo') {
+        if (outcome.voiceAudioPath && fs.existsSync(outcome.voiceAudioPath)) {
+          try {
+            await ctx.replyWithVoice({ source: outcome.voiceAudioPath });
+          } catch (e) {}
         }
         await ctx.replyWithPhoto({ source: outcome.photoPath }, { caption: outcome.replyText });
       } else if (outcome.type === 'video_package') {
         if (outcome.voiceAudioPath && fs.existsSync(outcome.voiceAudioPath)) {
-          await ctx.replyWithVoice({ source: outcome.voiceAudioPath });
+          try {
+            await ctx.replyWithVoice({ source: outcome.voiceAudioPath });
+          } catch (e) {}
         }
-        await ctx.reply(outcome.replyText, { parse_mode: 'Markdown' });
+        await ctx.reply(outcome.replyText);
       } else {
         if (outcome.voiceAudioPath && fs.existsSync(outcome.voiceAudioPath)) {
-          await ctx.replyWithVoice({ source: outcome.voiceAudioPath });
+          try {
+            await ctx.replyWithVoice({ source: outcome.voiceAudioPath });
+          } catch (e) {}
         }
-        await ctx.reply(outcome.replyText, { parse_mode: 'Markdown' });
+        await ctx.reply(outcome.replyText);
       }
     } catch (err) {
       console.error('[Telegram] Text command error:', err);

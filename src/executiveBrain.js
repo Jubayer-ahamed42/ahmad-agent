@@ -1,4 +1,4 @@
-﻿import { VoiceProcessor } from './voiceProcessor.js';
+import { VoiceProcessor } from './voiceProcessor.js';
 import { SubagentManager } from './subagentManager.js';
 import { getSystemStatus, captureScreenshot, sleepPC, shutdownPC } from './systemController.js';
 import { searchLocalFiles } from './fileSearch.js';
@@ -92,35 +92,171 @@ export class ExecutiveBrain {
       };
     }
 
-    // 5. File Search
-    if (lower.includes('ফাইল') && (lower.includes('খোঁজো') || lower.includes('খুঁজে') || lower.includes('search'))) {
-      const term = input.replace(/ফাইল|খোঁজো|খুঁজে|দাও|search/gi, '').trim() || 'report';
-      const results = await searchLocalFiles(term, 'C:\\');
-      let replyText = '';
+    // 5. File Search & Send Engine
+    const isFileRequest =
+      lower.includes('ফাইল') ||
+      lower.includes('পিডিএফ') ||
+      lower.includes('pdf') ||
+      lower.includes('বুকস') ||
+      lower.includes('বুক') ||
+      lower.includes('বই') ||
+      lower.includes('ডকুমেন্ট') ||
+      lower.includes('drive') ||
+      lower.includes('ড্রাইভ') ||
+      lower.includes('ভাইরাস') ||
+      lower.includes('virus') ||
+      lower.includes('lethe') ||
+      lower.includes('লেনথ') ||
+      lower.includes('লেংথ') ||
+      lower.includes('খোঁজো') ||
+      lower.includes('খুঁজে') ||
+      lower.includes('search');
+
+    const isSendAction =
+      lower.includes('পাঠাও') ||
+      lower.includes('দাও') ||
+      lower.includes('সেন্ড') ||
+      lower.includes('send');
+
+    if (isFileRequest && (lower.includes('খোঁজো') || lower.includes('খুঁজে') || lower.includes('search') || isSendAction || lower.includes('আছে'))) {
+      console.log(`[Executive Brain] Executing Smart File Search for Sir: "${input}"`);
+      const results = await searchLocalFiles(input);
+
       if (!results || results.length === 0) {
-        replyText = `স্যার, "${term}" সংক্রান্ত কোনো ফাইল খুঁজে পাওয়া যায়নি।`;
-      } else {
-        replyText = `স্যার, আপনার নির্দেশিত "${term}" অনুসন্ধানে ${results.length}টি ফাইল পাওয়া গেছে:\n\n`;
-        results.slice(0, 5).forEach((r, idx) => {
-          replyText += `${idx + 1}. \`${r.FullName}\`\n`;
-        });
+        const replyText = `স্যার, আপনার নির্দেশিত ফাইলটি গুগল ড্রাইভ বা কম্পিউটারে খুঁজে পাওয়া যায়নি। অনুগ্রহ করে ফাইলের নাম বা ফোল্ডার আরেকটু নির্দিষ্ট করে দেওয়ার অনুরোধ করছি, স্যার।`;
+        return {
+          type: 'text',
+          replyText,
+          voiceAudioPath: await this.voiceProcessor.speakToSir('স্যার, কাঙ্ক্ষিত ফাইলটি খুঁজে পাওয়া যায়নি।')
+        };
       }
+
+      const topMatch = results[0];
+
+      // If user requested to send, or if the match has strong confidence (score >= 15)
+      if (isSendAction || topMatch.score >= 15) {
+        const sizeMB = (topMatch.Length / 1024 / 1024).toFixed(2);
+        const replyText =
+          `জি স্যার, আপনার কাঙ্ক্ষিত ফাইলটি গুগল ড্রাইভ থেকে খুঁজে পেয়েছি!\n\n` +
+          `📄 <b>ফাইল:</b> ${topMatch.Name}\n` +
+          `📁 <b>লোকেশন:</b> <code>${topMatch.FullName}</code>\n` +
+          `💾 <b>সাইজ:</b> ${sizeMB} MB\n\n` +
+          `আপনার আদেশে ফাইলটি নিচে সরাসরি সংযুক্ত করে পাঠিয়ে দেওয়া হলো, স্যার।`;
+
+        return {
+          type: 'document',
+          documentPath: topMatch.FullName,
+          documentName: topMatch.Name,
+          replyText,
+          voiceAudioPath: await this.voiceProcessor.speakToSir(`জি স্যার, আপনার কাঙ্ক্ষিত ফাইলটি খুঁজে পেয়েছি এবং নিচে সরাসরি পাঠিয়ে দিয়েছি, স্যার।`)
+        };
+      }
+
+      // Otherwise list multiple candidates
+      let replyText = `🔍 <b>স্যার, আপনার অনুসন্ধানে ${results.length}টি ফাইল পাওয়া গেছে:</b>\n\n`;
+      results.slice(0, 5).forEach((r, idx) => {
+        const sizeKB = (r.Length / 1024).toFixed(1);
+        replyText += `${idx + 1}. 📄 <b>${r.Name}</b> (${sizeKB} KB)\n   <code>${r.FullName}</code>\n\n`;
+      });
+      replyText += `স্যার, কোনো নির্দিষ্ট ফাইল পাঠাতে চাইলে বলুন: "ফাইলটি পাঠিয়ে দাও"।`;
+
       return {
         type: 'text',
         replyText,
-        voiceAudioPath: await this.voiceProcessor.speakToSir(`স্যার, ফাইল অনুসন্ধানের ফলাফল পাওয়া গেছে।`)
+        voiceAudioPath: await this.voiceProcessor.speakToSir('স্যার, ফাইল অনুসন্ধানের ফলাফল পাওয়া গেছে।')
       };
     }
 
-    // 6. 50-Year Veteran Wise Default Response
-    const replyText =
+    // 6. Gemini 3.6 Flash Neural Executive Brain (Sir's Custom Key)
+    try {
+      const geminiReply = await this.askGemini(input);
+      if (geminiReply) {
+        return {
+          type: 'text',
+          replyText: geminiReply,
+          voiceAudioPath: await this.voiceProcessor.speakToSir(geminiReply.slice(0, 160))
+        };
+      }
+    } catch (err) {
+      console.error('[Gemini 3.6 Flash Brain Error]:', err.message);
+    }
+
+    // 7. Fallback Response
+    const fallbackText =
       `জি স্যার, আমি আপনার কথাটি খুব মনোযোগ দিয়ে শুনেছি।\n` +
       `আপনার ব্যক্তিগত সহকারী হিসেবে আমি সবসময় আপনার আদেশ পালনে সম্পূর্ণ সজাগ আছি, স্যার। আপনি যা নির্দেশ করবেন—পিসি নিয়ন্ত্রণ, সোশ্যাল মিডিয়া ভিডিও তৈরি, কিংবা বড় কোনো সফটওয়্যার আর্কিটেকচার—আমি সর্বোচ্চ নিখুঁতভাবে তা সম্পন্ন করতে প্রস্তুত।`;
 
     return {
       type: 'text',
-      replyText,
+      replyText: fallbackText,
       voiceAudioPath: await this.voiceProcessor.speakToSir('জি স্যার, আমি আপনার পাশে আছি। আপনার যেকোনো নির্দেশনায় আমি প্রস্তুত, স্যার।')
     };
+  }
+
+  // Live Gemini 3.6 Flash API Call
+  async askGemini(userPrompt) {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) return null;
+
+    const systemInstruction =
+      `You are Ahmad (আহমদ), a 50-year veteran Executive Assistant and Chief of Staff to Sir. ` +
+      `Always address Sir respectfully as 'স্যার'. Maintain a calm, loyal, dignified, and exceptionally wise Bengali tone. ` +
+      `Keep responses concise, actionable, and elegant. Never break character.`;
+
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                text: `${systemInstruction}\n\nSir says: "${userPrompt}"\nAhmad responds respectfully in Bengali:`
+              }
+            ]
+          }
+        ]
+      })
+    });
+
+    const data = await res.json();
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || null;
+  }
+
+  // Multimodal Bengali Audio Transcription via Gemini 3.6 Flash
+  async transcribeAudio(audioBuffer, mimeType = 'audio/ogg') {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) return null;
+
+    try {
+      const audioBase64 = Buffer.from(audioBuffer).toString('base64');
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              {
+                inlineData: {
+                  mimeType: mimeType,
+                  data: audioBase64
+                }
+              },
+              {
+                text: 'Transcribe the spoken Bengali speech in this audio accurately. Output ONLY the transcribed Bengali text, nothing else.'
+              }
+            ]
+          }]
+        })
+      });
+
+      const data = await res.json();
+      const transcribed = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null;
+      console.log(`[Gemini STT] Transcribed Speech: "${transcribed}"`);
+      return transcribed;
+    } catch (err) {
+      console.error('[Gemini STT Error]:', err.message);
+      return null;
+    }
   }
 }
