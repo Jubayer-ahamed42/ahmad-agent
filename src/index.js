@@ -32,11 +32,25 @@ whatsapp = new WhatsAppService({
   }
 });
 
+// Global crash prevention & resilience
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[Resilience] Unhandled Rejection:', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('[Resilience] Uncaught Exception:', err);
+});
+
 if (token) {
   bot = createTelegramBot(token, ownerId, whatsapp);
-  bot.launch(() => {
-    console.log('✅ Ahmad Telegram Master Bot is ONLINE and listening!');
-  });
+  const launchBot = () => {
+    bot.launch(() => {
+      console.log('✅ Ahmad Telegram Master Bot is ONLINE and listening!');
+    }).catch((err) => {
+      console.error('⚠️ Telegram bot launch error (retrying in 5s):', err.message);
+      setTimeout(launchBot, 5000);
+    });
+  };
+  launchBot();
 } else {
   console.log('ℹ️  TELEGRAM_BOT_TOKEN is not set in .env.');
 }
