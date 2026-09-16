@@ -1,20 +1,59 @@
-﻿import fs from 'fs';
+import fs from 'fs';
 import path from 'path';
 import { VideoProducer } from './videoProducer.js';
+import { FacebookService } from './facebookService.js';
 
 export class SocialMediaManager {
   constructor() {
     this.name = 'Social Media & Video Production Specialist';
     this.videoProducer = new VideoProducer();
+    this.facebook = new FacebookService();
     this.inboxCountToday = 0;
     this.commentsCountToday = 0;
   }
 
-  // 1. Reply to customer comment or message
-  handleCommentOrMessage(userMessage, userName = 'কাস্টমার') {
+  // 1. Check if Facebook integration is connected
+  isFacebookConnected() {
+    return this.facebook.isConfigured();
+  }
+
+  // 2. Fetch Facebook Page Profile and Stats
+  async getFacebookStatus() {
+    return await this.facebook.getPageInfo();
+  }
+
+  // 3. Publish post to Facebook Page
+  async publishPost(message, mediaPath = null) {
+    if (mediaPath) {
+      return await this.facebook.publishPhotoPost(mediaPath, message);
+    }
+    return await this.facebook.publishTextPost(message);
+  }
+
+  // 4. Fetch recent posts from Facebook Page
+  async getRecentPosts(limit = 5) {
+    return await this.facebook.getRecentPosts(limit);
+  }
+
+  // 5. Reply to customer comment or message
+  async handleCommentOrMessage(commentId = null, replyText = null) {
     this.commentsCountToday += 1;
+    const defaultReply = 'আসসালামু আলাইকুম স্যার। ধন্যবাদ আমাদের সাথে যোগাযোগ করার জন্য। আপনার প্রশ্নটির উত্তর আমরা ইনবক্সে বিস্তারিত জানিয়ে দিচ্ছি, স্যার।';
+    const textToSend = replyText || defaultReply;
+
+    if (this.facebook.isConfigured() && commentId) {
+      const res = await this.facebook.replyToComment(commentId, textToSend);
+      return {
+        success: res.success,
+        reply: textToSend,
+        replyId: res.replyId,
+        timestamp: new Date().toISOString()
+      };
+    }
+
     return {
-      reply: `আসসালামু আলাইকুম স্যার। ধন্যবাদ আমাদের সাথে যোগাযোগ করার জন্য। আপনার প্রশ্নটির উত্তর আমরা ইনবক্সে বিস্তারিত জানিয়ে দিচ্ছি, স্যার।`,
+      success: true,
+      reply: textToSend,
       timestamp: new Date().toISOString()
     };
   }

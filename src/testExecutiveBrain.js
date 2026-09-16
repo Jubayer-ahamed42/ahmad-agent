@@ -1,4 +1,7 @@
-﻿import { ExecutiveBrain } from './executiveBrain.js';
+import dotenv from 'dotenv';
+dotenv.config();
+
+import { ExecutiveBrain } from './executiveBrain.js';
 import fs from 'fs';
 
 console.log('Testing Ahmad 50-Year Veteran Executive Brain...');

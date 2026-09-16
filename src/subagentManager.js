@@ -1,4 +1,4 @@
-﻿import { SocialMediaManager } from '../subagents/socialMediaManager/index.js';
+import { SocialMediaManager } from '../subagents/socialMediaManager/index.js';
 import { CodeExpert } from '../subagents/codeExpert/index.js';
 
 export class SubagentManager {
@@ -28,6 +28,26 @@ export class SubagentManager {
   // Delegate code review
   delegateCodeReview(code) {
     return this.codeExpert.reviewCodeSnippet(code);
+  }
+
+  // Delegate Facebook publishing
+  async delegateFacebookPost(message, mediaPath = null) {
+    return await this.socialMedia.publishPost(message, mediaPath);
+  }
+
+  // Delegate Facebook page info
+  async delegateFacebookStatus() {
+    return await this.socialMedia.getFacebookStatus();
+  }
+
+  // Delegate Facebook recent posts
+  async delegateFacebookRecentPosts(limit = 5) {
+    return await this.socialMedia.getRecentPosts(limit);
+  }
+
+  // Delegate Facebook comment reply
+  async delegateFacebookCommentReply(commentId, text) {
+    return await this.socialMedia.handleCommentOrMessage(commentId, text);
   }
 
   // Get social summary for 9 PM briefing

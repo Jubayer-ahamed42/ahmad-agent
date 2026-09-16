@@ -400,6 +400,84 @@ export function createTelegramBot(token, configuredOwnerId = null, whatsappServi
     }
   });
 
+  // /fb_status
+  bot.command('fb_status', async (ctx) => {
+    console.log('[Telegram] Executing /fb_status for Sir');
+    const status = await ahmadBrain.subagents.delegateFacebookStatus();
+    if (!status.success) {
+      return ctx.reply(
+        `⚠️ <b>ফেসবুক পেজ এখনো সম্পূর্ণ সংযুক্ত করা হয়নি, স্যার।</b>\n\n` +
+        `বিবরণ: <i>${escapeHtml(status.error)}</i>\n\n` +
+        `কানেক্ট করতে আপনার <b>Page ID</b> এবং <b>Page Access Token</b> প্রয়োজন।`,
+        { parse_mode: 'HTML' }
+      );
+    }
+
+    const msg =
+      `📢 <b>ফেসবুক পেজ এক্সিকিউটিভ স্ট্যাটাস (স্যার):</b>\n\n` +
+      `• পেজের নাম: <b>${escapeHtml(status.name)}</b>\n` +
+      `• মোট ফলোয়ার: <b>${status.followers} জন</b>\n` +
+      `• পেজ লিংক: <a href="${status.link}">লিংক দেখুন</a>\n` +
+      `• স্ট্যাটাস: 🟢 <b>সংযুক্ত ও সম্পূর্ণ সক্রিয় (Meta Graph API)</b>\n\n` +
+      `<i>কমান্ডসমূহ:</i>\n` +
+      `• <code>/fb_post &lt;টেক্সট&gt;</code> - পেজে পোস্ট দিতে\n` +
+      `• <code>/fb_recent</code> - সাম্প্রতিক পোস্ট দেখতে`;
+
+    await ctx.reply(msg, { parse_mode: 'HTML', disable_web_page_preview: true });
+  });
+
+  // /fb_post <text>
+  bot.command('fb_post', async (ctx) => {
+    console.log('[Telegram] Executing /fb_post for Sir');
+    const parts = ctx.message.text.split(' ');
+    parts.shift();
+    const postText = parts.join(' ').trim();
+
+    if (!postText) {
+      return ctx.reply(
+        `✍️ <b>ফেসবুক পেজে পোস্ট করার নিয়ম:</b>\n\n` +
+        `কমান্ডের পর আপনার কাঙ্ক্ষিত পোস্টের লেখাটি লিখুন, স্যার:\n` +
+        `<code>/fb_post আসসালামু আলাইকুম! আমাদের নতুন অফার...</code>`,
+        { parse_mode: 'HTML' }
+      );
+    }
+
+    await ctx.reply('⏳ ফেসবুক পেজে পোস্ট পাবলিশ করা হচ্ছে, স্যার...');
+    const res = await ahmadBrain.subagents.delegateFacebookPost(postText);
+    if (res.success) {
+      await ctx.reply(
+        `✅ <b>ফেসবুক পেজে সফলভাবে পোস্ট পাবলিশ হয়েছে, স্যার!</b>\n\n` +
+        `🔗 <b>পোস্ট লিংক:</b> <a href="${res.postUrl}">এখানে দেখুন</a>`,
+        { parse_mode: 'HTML' }
+      );
+    } else {
+      await ctx.reply(`❌ পোস্ট পাবলিশে সমস্যা হয়েছে, স্যার: ${escapeHtml(res.error)}`);
+    }
+  });
+
+  // /fb_recent
+  bot.command('fb_recent', async (ctx) => {
+    console.log('[Telegram] Executing /fb_recent for Sir');
+    const res = await ahmadBrain.subagents.delegateFacebookRecentPosts(3);
+    if (!res.success) {
+      return ctx.reply(`⚠️ ফেসবুক পোস্ট দেখতে সমস্যা হয়েছে: ${escapeHtml(res.error)}`);
+    }
+
+    if (!res.posts || res.posts.length === 0) {
+      return ctx.reply('পেজে সম্প্রতি কোনো পোস্ট পাওয়া যায়নি, স্যার।');
+    }
+
+    let msg = `📋 <b>সাম্প্রতিক ৩টি ফেসবুক পোস্ট:</b>\n\n`;
+    res.posts.forEach((p, i) => {
+      const snippet = p.message.length > 60 ? p.message.substring(0, 60) + '...' : p.message;
+      msg += `${i + 1}. <b>"${escapeHtml(snippet)}"</b>\n`;
+      msg += `   👍 লাইক: ${p.likeCount} | 💬 কমেন্ট: ${p.commentCount}\n`;
+      msg += `   🔗 <a href="${p.url}">পোস্টটি দেখুন</a>\n\n`;
+    });
+
+    await ctx.reply(msg, { parse_mode: 'HTML', disable_web_page_preview: true });
+  });
+
   // Voice Note Handler (Full Gemini 3.6 Flash Multimodal Audio STT)
   bot.on('voice', async (ctx) => {
     console.log('[Telegram] Received voice message from Sir. Transcribing with Gemini 3.6 Flash...');

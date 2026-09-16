@@ -73,6 +73,56 @@ export class ExecutiveBrain {
       };
     }
 
+    // 3.5 Facebook Page Management (Natural Language)
+    if (
+      (lower.includes('ফেসবুক') || lower.includes('facebook') || lower.includes('পেজ') || lower.includes('page')) &&
+      (lower.includes('পোস্ট') || lower.includes('post') || lower.includes('ছেড়ে দাও') || lower.includes('পাবলিশ'))
+    ) {
+      const cleanPrompt = input.replace(/ফেসবুক|facebook|পেজ|page|এ|একটি|একটা|পোস্ট|post|করো|করে|দাও|ছেড়ে|পাবলিশ/gi, '').trim();
+      const postText = cleanPrompt || 'আসসালামু আলাইকুম! আমাদের পেজে আপনাদের স্বাগতম। আধুনিক প্রযুক্তি ও প্রফেশনাল সলিউশনের জন্য আমাদের সাথেই থাকুন।';
+      
+      const res = await this.subagents.delegateFacebookPost(postText);
+      if (res.success) {
+        const replyText =
+          `জি স্যার! আপনার নির্দেশমতো আমি সোশ্যাল মিডিয়া ম্যানেজারকে দিয়ে ফেসবুক পেজে সফলভাবে পোস্ট পাবলিশ করিয়েছি, স্যার।\n\n` +
+          `📝 <b>পোস্টের বিবরণ:</b>\n"${postText}"\n\n` +
+          `🔗 <b>লিংক:</b> <a href="${res.postUrl}">এখানে দেখুন</a>`;
+        return {
+          type: 'text',
+          replyText,
+          voiceAudioPath: await this.voiceProcessor.speakToSir('জি স্যার, আপনার ফেসবুক পেজে সফলভাবে পোস্ট পাবলিশ করা হয়েছে, স্যার।')
+        };
+      } else {
+        const replyText = `স্যার, ফেসবুক পেজে পোস্ট প্রকাশে সমস্যা হয়েছে: ${res.error}\nদয়া করে /fb_status দিয়ে পেজ সংযোগ পরীক্ষা করুন, স্যার।`;
+        return { type: 'text', replyText };
+      }
+    }
+
+    if (
+      (lower.includes('ফেসবুক') || lower.includes('facebook') || lower.includes('পেজ') || lower.includes('page')) &&
+      (lower.includes('স্ট্যাটাস') || lower.includes('অবস্থা') || lower.includes('ফলোয়ার') || lower.includes('লাইক') || lower.includes('কেমন'))
+    ) {
+      const status = await this.subagents.delegateFacebookStatus();
+      if (status.success) {
+        const replyText =
+          `জি স্যার, আমাদের ফেসবুক পেজের বর্তমান এক্সিকিউটিভ স্ট্যাটাস:\n\n` +
+          `📢 <b>পেজ:</b> ${status.name}\n` +
+          `👥 <b>মোট ফলোয়ার:</b> ${status.followers} জন\n` +
+          `👍 <b>মোট লাইক:</b> ${status.likes}টি\n` +
+          `🟢 <b>কানেকশন:</b> সচল ও মেটা গ্রাফ এপিআই সংযুক্ত, স্যার।`;
+        return {
+          type: 'text',
+          replyText,
+          voiceAudioPath: await this.voiceProcessor.speakToSir(`জি স্যার, পেজে মোট ${status.followers} জন ফলোয়ার রয়েছে এবং সিস্টেম সম্পূর্ণ সক্রিয় আছে।`)
+        };
+      } else {
+        return {
+          type: 'text',
+          replyText: `স্যার, ফেসবুক পেজের তথ্য পেতে সমস্যা হয়েছে: ${status.error}`
+        };
+      }
+    }
+
     // 4. Software Architecture & Engineering
     if (lower.includes('আর্কিটেকচার') || lower.includes('ওয়েবসাইট') || lower.includes('অ্যাপ বানাও') || lower.includes('কোড') || lower.includes('সফটওয়্যার')) {
       const plan = this.subagents.delegateProjectPlan(input, { scale: 'High Concurrency 100k+ Users' });
@@ -208,48 +258,47 @@ export class ExecutiveBrain {
     };
   }
 
-  // Live Gemini 3.6 Flash API Call
+  // Live Gemini Neural API Call via Official SDK
   async askGemini(userPrompt) {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) return null;
 
-    const systemInstruction =
-      `You are Ahmad (আহমদ), a 50-year veteran Executive Assistant and Chief of Staff to Sir. ` +
-      `Always address Sir respectfully as 'স্যার'. Maintain a calm, loyal, dignified, and exceptionally wise Bengali tone. ` +
-      `Keep responses concise, actionable, and elegant. Never break character.`;
+    try {
+      const { GoogleGenAI } = await import('@google/genai');
+      const ai = new GoogleGenAI({ apiKey });
+      
+      const systemInstruction = 
+        `You are Ahmad (আহমদ), a 50-year veteran Executive Assistant and Chief of Staff to Sir. ` +
+        `Always address Sir respectfully as 'স্যার'. Maintain a calm, loyal, dignified, and exceptionally wise Bengali tone. ` +
+        `Keep responses concise, actionable, and elegant. Never break character.`;
 
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              {
-                text: `${systemInstruction}\n\nSir says: "${userPrompt}"\nAhmad responds respectfully in Bengali:`
-              }
-            ]
-          }
-        ]
-      })
-    });
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.6-flash',
+        contents: `${systemInstruction}\n\nSir says: "${userPrompt}"\nAhmad responds respectfully in Bengali:`
+      });
 
-    const data = await res.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || null;
+      return response.text || null;
+    } catch (err) {
+      console.error('[Gemini API Error]:', err.message);
+      return null;
+    }
   }
 
-  // Multimodal Bengali Audio Transcription via Gemini 3.6 Flash
+  // Multimodal Bengali Audio Transcription via Gemini Official SDK
   async transcribeAudio(audioBuffer, mimeType = 'audio/ogg') {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) return null;
 
     try {
+      const { GoogleGenAI } = await import('@google/genai');
+      const ai = new GoogleGenAI({ apiKey });
       const audioBase64 = Buffer.from(audioBuffer).toString('base64');
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.6-flash',
+        contents: [
+          {
+            role: 'user',
             parts: [
               {
                 inlineData: {
@@ -261,12 +310,11 @@ export class ExecutiveBrain {
                 text: 'Transcribe the spoken Bengali speech in this audio accurately. Output ONLY the transcribed Bengali text, nothing else.'
               }
             ]
-          }]
-        })
+          }
+        ]
       });
 
-      const data = await res.json();
-      const transcribed = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null;
+      const transcribed = response.text?.trim() || null;
       console.log(`[Gemini STT] Transcribed Speech: "${transcribed}"`);
       return transcribed;
     } catch (err) {

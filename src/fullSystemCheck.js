@@ -85,7 +85,7 @@ try {
   const audit = sm.delegateCodeReview('var token = "secret_123";');
   
   results.push({ test: 'Subagent 1: Social Media Expert (Posts & Video Pipeline)', status: 'PASS', detail: 'Post generation & Video Engine active' });
-  results.push({ test: 'Subagent 2: 20-Year Principal Architect (System Design & Security Audit)', status: 'PASS', detail: `Auditor caught ${audit.issuesCount} issues, Architecture layer defined` });
+  results.push({ test: 'Subagent 2: 20-Year Principal Architect (System Design & Security Audit)', status: 'PASS', detail: `Auditor caught ${audit.critical.length + audit.warnings.length} issues, Architecture layer defined` });
 } catch (e) {
   results.push({ test: 'Subagents Delegation', status: 'FAIL', detail: e.message });
 }
