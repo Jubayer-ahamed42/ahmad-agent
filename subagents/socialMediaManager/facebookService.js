@@ -1,4 +1,4 @@
-﻿import fs from 'fs';
+import fs from 'fs';
 import path from 'path';
 
 /**
@@ -8,14 +8,22 @@ import path from 'path';
  */
 export class FacebookService {
   constructor(options = {}) {
-    this.pageId = options.pageId || process.env.FB_PAGE_ID || '';
-    this.accessToken = options.accessToken || process.env.FB_PAGE_ACCESS_TOKEN || '';
+    this.pageId = options.pageId || '';
+    this.accessToken = options.accessToken || '';
     this.apiVersion = 'v20.0';
     this.baseUrl = `https://graph.facebook.com/${this.apiVersion}`;
   }
 
+  get activePageId() {
+    return this.pageId || process.env.FB_PAGE_ID || '';
+  }
+
+  get activeAccessToken() {
+    return this.accessToken || process.env.FB_PAGE_ACCESS_TOKEN || '';
+  }
+
   isConfigured() {
-    return Boolean(this.pageId && this.accessToken);
+    return Boolean(this.activePageId && this.activeAccessToken);
   }
 
   /**
@@ -27,7 +35,7 @@ export class FacebookService {
     }
 
     try {
-      const url = `${this.baseUrl}/${this.pageId}?fields=id,name,followers_count,fan_count,link,about&access_token=${this.accessToken}`;
+      const url = `${this.baseUrl}/${this.activePageId}?fields=id,name,followers_count,fan_count,link,about&access_token=${this.activeAccessToken}`;
       const res = await fetch(url);
       const data = await res.json();
 
@@ -62,13 +70,13 @@ export class FacebookService {
     }
 
     try {
-      const url = `${this.baseUrl}/${this.pageId}/feed`;
+      const url = `${this.baseUrl}/${this.activePageId}/feed`;
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: message.trim(),
-          access_token: this.accessToken
+          access_token: this.activeAccessToken
         })
       });
 
@@ -96,7 +104,7 @@ export class FacebookService {
     }
 
     try {
-      const url = `${this.baseUrl}/${this.pageId}/photos`;
+      const url = `${this.baseUrl}/${this.activePageId}/photos`;
       let res;
 
       if (/^https?:\/\//i.test(photoUrlOrPath)) {
@@ -106,7 +114,7 @@ export class FacebookService {
           body: JSON.stringify({
             url: photoUrlOrPath,
             caption: caption.trim(),
-            access_token: this.accessToken
+            access_token: this.activeAccessToken
           })
         });
       } else {
@@ -119,7 +127,7 @@ export class FacebookService {
         const blob = new Blob([fileBuffer]);
         formData.append('source', blob, path.basename(photoUrlOrPath));
         formData.append('caption', caption.trim());
-        formData.append('access_token', this.accessToken);
+        formData.append('access_token', this.activeAccessToken);
 
         res = await fetch(url, {
           method: 'POST',
@@ -152,7 +160,7 @@ export class FacebookService {
     }
 
     try {
-      const url = `${this.baseUrl}/${this.pageId}/feed?fields=id,message,created_time,likes.summary(true),comments.summary(true)&limit=${limit}&access_token=${this.accessToken}`;
+      const url = `${this.baseUrl}/${this.activePageId}/feed?fields=id,message,created_time,likes.summary(true),comments.summary(true)&limit=${limit}&access_token=${this.activeAccessToken}`;
       const res = await fetch(url);
       const data = await res.json();
 
@@ -184,7 +192,7 @@ export class FacebookService {
     }
 
     try {
-      const url = `${this.baseUrl}/${postId}/comments?fields=id,from,message,created_time,comment_count&access_token=${this.accessToken}`;
+      const url = `${this.baseUrl}/${postId}/comments?fields=id,from,message,created_time,comment_count&access_token=${this.activeAccessToken}`;
       const res = await fetch(url);
       const data = await res.json();
 
@@ -213,7 +221,7 @@ export class FacebookService {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: message.trim(),
-          access_token: this.accessToken
+          access_token: this.activeAccessToken
         })
       });
 

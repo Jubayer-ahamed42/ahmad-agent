@@ -31,49 +31,7 @@ export class ExecutiveBrain {
       };
     }
 
-    // 2. PC Hardware & System Status
-    if (lower.includes('স্ট্যাটাস') || lower.includes('অবস্থা কেমন') || lower.includes('পিসির অবস্থা') || lower.includes('/status')) {
-      const s = getSystemStatus();
-      const replyText =
-        `স্যার, আপনার কম্পিউটারের বর্তমান অবস্থা সম্পূর্ণ স্থিতিশীল ও স্বাভাবিক রয়েছে।\n` +
-        `• ওএস: ${s.os}\n` +
-        `• প্রসেসর: ${s.cpuModel} (${s.cpuCores} কোর সক্রিয়)\n` +
-        `• মেমরি: ${s.freeMemory} খালি (মোট ${s.totalMemory})\n` +
-        `• আপটাইম: ${s.uptime}\n` +
-        `কোনো অতিরিক্ত চাপ বা সমস্যা পরিলক্ষিত হয়নি, স্যার।`;
-      return {
-        type: 'text',
-        replyText,
-        voiceAudioPath: await this.voiceProcessor.speakToSir('স্যার, আপনার কম্পিউটারের বর্তমান অবস্থা সম্পূর্ণ স্থিতিশীল ও স্বাভাবিক রয়েছে।')
-      };
-    }
-
-    // 3. Social Media Video Creation
-    if (lower.includes('ভিডিও') && (lower.includes('বানাও') || lower.includes('তৈরি') || lower.includes('করো'))) {
-      // Determine duration
-      let duration = 1;
-      if (lower.includes('২ মিনিট') || lower.includes('2 min')) duration = 2;
-      else if (lower.includes('৩ মিনিট') || lower.includes('3 min')) duration = 3;
-      else if (lower.includes('৫ মিনিট') || lower.includes('5 min')) duration = 5;
-
-      const topicMatch = input.replace(/ভিডিও|বানাও|তৈরি|করো|মিনিট|এর|উপর|\d+/gi, '').trim() || 'ডিজিটাল সলিউশন ও অটোমেশন';
-      const packageResult = await this.subagents.delegateVideoProduction(topicMatch, duration);
-
-      const replyText =
-        `জি স্যার! আমি সোশ্যাল মিডিয়া সাব-এজেন্টকে দিয়ে "${topicMatch}" বিষয়ের ওপর ${duration} মিনিটের একটি সম্পূর্ণ মার্জিত ভিডিও এবং ফেসবুক পোস্ট তৈরি করিয়েছি, স্যার।\n\n` +
-        `🎥 ভিডিও ফাইল: \`${packageResult.videoPath}\`\n` +
-        `🎙️ ভয়েসওভার: \`${packageResult.audioPath}\`\n\n` +
-        `📝 *ফেসবুক পোস্ট কপি:*\n${packageResult.facebookPostCopy}`;
-
-      return {
-        type: 'video_package',
-        packageResult,
-        replyText,
-        voiceAudioPath: await this.voiceProcessor.speakToSir(`জি স্যার, আপনার নির্দেশমতো ${duration} মিনিটের ভিডিও প্যাকেজটি সফলভাবে প্রস্তুত করা হয়েছে, স্যার।`)
-      };
-    }
-
-    // 3.5 Facebook Page Management (Natural Language)
+    // 2. Facebook Page Management (Natural Language)
     if (
       (lower.includes('ফেসবুক') || lower.includes('facebook') || lower.includes('পেজ') || lower.includes('page')) &&
       (lower.includes('পোস্ট') || lower.includes('post') || lower.includes('ছেড়ে দাও') || lower.includes('পাবলিশ'))
@@ -100,7 +58,7 @@ export class ExecutiveBrain {
 
     if (
       (lower.includes('ফেসবুক') || lower.includes('facebook') || lower.includes('পেজ') || lower.includes('page')) &&
-      (lower.includes('স্ট্যাটাস') || lower.includes('অবস্থা') || lower.includes('ফলোয়ার') || lower.includes('লাইক') || lower.includes('কেমন'))
+      (lower.includes('স্ট্যাটাস') || lower.includes('অবস্থা') || lower.includes('ফলোয়ার') || lower.includes('লাইক') || lower.includes('কেমন') || lower.includes('রিপোর্ট'))
     ) {
       const status = await this.subagents.delegateFacebookStatus();
       if (status.success) {
@@ -113,7 +71,7 @@ export class ExecutiveBrain {
         return {
           type: 'text',
           replyText,
-          voiceAudioPath: await this.voiceProcessor.speakToSir(`জি স্যার, পেজে মোট ${status.followers} জন ফলোয়ার রয়েছে এবং সিস্টেম সম্পূর্ণ সক্রিয় আছে।`)
+          voiceAudioPath: await this.voiceProcessor.speakToSir(`জি স্যার, ফেসবুক পেজে মোট ${status.followers} জন ফলোয়ার রয়েছে এবং সিস্টেম সম্পূর্ণ সক্রিয় আছে।`)
         };
       } else {
         return {
@@ -121,6 +79,51 @@ export class ExecutiveBrain {
           replyText: `স্যার, ফেসবুক পেজের তথ্য পেতে সমস্যা হয়েছে: ${status.error}`
         };
       }
+    }
+
+    // 3. PC Hardware & System Status
+    if (
+      !lower.includes('ফেসবুক') && !lower.includes('facebook') && !lower.includes('পেজ') &&
+      (lower.includes('স্ট্যাটাস') || lower.includes('অবস্থা কেমন') || lower.includes('পিসির অবস্থা') || lower.includes('/status'))
+    ) {
+      const s = getSystemStatus();
+      const replyText =
+        `স্যার, আপনার কম্পিউটারের বর্তমান অবস্থা সম্পূর্ণ স্থিতিশীল ও স্বাভাবিক রয়েছে।\n` +
+        `• ওএস: ${s.os}\n` +
+        `• প্রসেসর: ${s.cpuModel} (${s.cpuCores} কোর সক্রিয়)\n` +
+        `• মেমরি: ${s.freeMemory} খালি (মোট ${s.totalMemory})\n` +
+        `• আপটাইম: ${s.uptime}\n` +
+        `কোনো অতিরিক্ত চাপ বা সমস্যা পরিলক্ষিত হয়নি, স্যার।`;
+      return {
+        type: 'text',
+        replyText,
+        voiceAudioPath: await this.voiceProcessor.speakToSir('স্যার, আপনার কম্পিউটারের বর্তমান অবস্থা সম্পূর্ণ স্থিতিশীল ও স্বাভাবিক রয়েছে।')
+      };
+    }
+
+    // 4. Social Media Video Creation
+    if (lower.includes('ভিডিও') && (lower.includes('বানাও') || lower.includes('তৈরি') || lower.includes('করো'))) {
+      // Determine duration
+      let duration = 1;
+      if (lower.includes('২ মিনিট') || lower.includes('2 min')) duration = 2;
+      else if (lower.includes('৩ মিনিট') || lower.includes('3 min')) duration = 3;
+      else if (lower.includes('৫ মিনিট') || lower.includes('5 min')) duration = 5;
+
+      const topicMatch = input.replace(/ভিডিও|বানাও|তৈরি|করো|মিনিট|এর|উপর|\d+/gi, '').trim() || 'ডিজিটাল সলিউশন ও অটোমেশন';
+      const packageResult = await this.subagents.delegateVideoProduction(topicMatch, duration);
+
+      const replyText =
+        `জি স্যার! আমি সোশ্যাল মিডিয়া সাব-এজেন্টকে দিয়ে "${topicMatch}" বিষয়ের ওপর ${duration} মিনিটের একটি সম্পূর্ণ মার্জিত ভিডিও এবং ফেসবুক পোস্ট তৈরি করিয়েছি, স্যার।\n\n` +
+        `🎥 ভিডিও ফাইল: \`${packageResult.videoPath}\`\n` +
+        `🎙️ ভয়েসওভার: \`${packageResult.audioPath}\`\n\n` +
+        `📝 *ফেসবুক পোস্ট কপি:*\n${packageResult.facebookPostCopy}`;
+
+      return {
+        type: 'video_package',
+        packageResult,
+        replyText,
+        voiceAudioPath: await this.voiceProcessor.speakToSir(`জি স্যার, আপনার নির্দেশমতো ${duration} মিনিটের ভিডিও প্যাকেজটি সফলভাবে প্রস্তুত করা হয়েছে, স্যার।`)
+      };
     }
 
     // 4. Software Architecture & Engineering

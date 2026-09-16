@@ -21,7 +21,12 @@ async function sendOutcomeToSir(ctx, outcome) {
 
   // Voice reply (যদি থাকে)
   if (outcome.voiceAudioPath && fs.existsSync(outcome.voiceAudioPath)) {
-    try { await ctx.replyWithVoice({ source: outcome.voiceAudioPath }); } catch (e) {}
+    try {
+      await ctx.replyWithVoice({ source: fs.createReadStream(outcome.voiceAudioPath) });
+    } catch (e) {
+      console.error('[Telegram] replyWithVoice error:', e.message);
+      try { await ctx.replyWithVoice({ source: outcome.voiceAudioPath }); } catch (e2) {}
+    }
   }
 
   if (outcome.type === 'document') {
@@ -49,7 +54,11 @@ async function sendOutcomeToSir(ctx, outcome) {
     await ctx.replyWithPhoto({ source: outcome.photoPath }, { caption: outcome.replyText });
   } else {
     // 'text' | 'video_package' | অন্য যেকোনো type
-    await ctx.reply(outcome.replyText);
+    try {
+      await ctx.reply(outcome.replyText, { parse_mode: 'HTML', disable_web_page_preview: true });
+    } catch (e) {
+      await ctx.reply(outcome.replyText);
+    }
   }
 }
 // ───────────────────────────────────────────────────────────────────────────
