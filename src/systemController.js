@@ -117,33 +117,37 @@ export function emptyRecycleBin() {
   });
 }
 
-// 8. Open Application on PC
+// 8. Open Application on PC (Interactive Session & WMI Launch)
 export function openApplication(appName) {
-  const normalized = (appName || '').toLowerCase().trim();
-  let cmd = '';
-
-  if (normalized.includes('chrome') || normalized.includes('ক্রোম') || normalized.includes('browser') || normalized.includes('ব্রাউজার')) {
-    cmd = 'start chrome';
-  } else if (normalized.includes('notepad') || normalized.includes('নোটপ্যাড')) {
-    cmd = 'notepad.exe';
-  } else if (normalized.includes('calc') || normalized.includes('ক্যালকুলেটর')) {
-    cmd = 'calc.exe';
-  } else if (normalized.includes('explorer') || normalized.includes('ফাইল ম্যানেজার') || normalized.includes('দিস পিসি')) {
-    cmd = 'explorer.exe';
-  } else if (normalized.includes('taskmgr') || normalized.includes('টাস্ক ম্যানেজার')) {
-    cmd = 'taskmgr.exe';
-  } else if (normalized.includes('cmd') || normalized.includes('টার্মিনাল') || normalized.includes('কমান্ড')) {
-    cmd = 'start cmd.exe';
-  } else if (normalized.includes('edge') || normalized.includes('এজ')) {
-    cmd = 'start msedge';
-  } else {
-    cmd = `start "" "${appName}"`;
-  }
-
-  return new Promise((resolve, reject) => {
-    exec(cmd, (err) => {
-      if (err) return reject(err);
+  return new Promise((resolve) => {
+    const psScriptPath = path.join(process.cwd(), 'src', 'open_app.ps1');
+    const safeApp = (appName || 'chrome').replace(/["']/g, '');
+    const cmd = `powershell.exe -NoProfile -ExecutionPolicy Bypass -File "${psScriptPath}" -AppName "${safeApp}"`;
+    
+    exec(cmd, { timeout: 5000 }, (err, stdout) => {
+      if (err) {
+        console.warn(`[openApplication] Notice: ${err.message}`);
+      } else if (stdout) {
+        console.log(stdout.trim());
+      }
       resolve(`Application launched: ${appName}`);
+    });
+  });
+}
+
+// 9. Wake PC & Activate Lock Screen / Login Prompt
+export function wakePC() {
+  return new Promise((resolve) => {
+    const psScriptPath = path.join(process.cwd(), 'src', 'wake_pc.ps1');
+    const cmd = `powershell.exe -NoProfile -ExecutionPolicy Bypass -File "${psScriptPath}"`;
+    
+    exec(cmd, { timeout: 5000 }, (err, stdout) => {
+      if (err) {
+        console.warn(`[wakePC] Notice: ${err.message}`);
+      } else if (stdout) {
+        console.log(stdout.trim());
+      }
+      resolve('PC display awakened and login screen activated, Sir.');
     });
   });
 }

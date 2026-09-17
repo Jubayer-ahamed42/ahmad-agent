@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { VoiceProcessor } from './voiceProcessor.js';
 import { SubagentManager } from './subagentManager.js';
-import { getSystemStatus, captureScreenshot, sleepPC, shutdownPC, lockPC, emptyRecycleBin, openApplication } from './systemController.js';
+import { getSystemStatus, captureScreenshot, sleepPC, shutdownPC, lockPC, wakePC, emptyRecycleBin, openApplication } from './systemController.js';
 import { DesktopOrganizer } from './desktopOrganizer.js';
 import { searchLocalFiles } from './fileSearch.js';
 import { generateMorningBriefingText, generateNightSummaryText } from './scheduler.js';
@@ -36,6 +36,7 @@ Available Actions:
 - ACTION_DESKTOP_UNDO: revert desktop / bring files back / restore desktop
 - ACTION_DESKTOP_STATUS: check desktop file counts / desktop report / how many files on desktop
 - ACTION_LOCK_PC: lock screen / lock workstation / lock computer
+- ACTION_UNLOCK_PC: unlock PC / open computer / unlock workstation / open screen / wake PC / wake screen (Bengali: কম্পিউটার ওপেন করো, পিসি ওপেন করো, লক খোলো, আনলক করো, স্ক্রিন অন করো, ডিসপ্লে অন করো)
 - ACTION_EMPTY_RECYCLE_BIN: empty recycle bin / delete trash / remove computer garbage / clear bin
 - ACTION_OPEN_APP: open / launch application (chrome, notepad, calc, taskmgr, explorer, cmd, edge, etc.)
 - ACTION_FILE_SEARCH: search, locate, or send local/Google Drive files, books, documents, PDFs
@@ -168,6 +169,17 @@ Return ONLY valid JSON matching this schema:
           type: 'text',
           replyText,
           voiceAudioPath: await this.voiceProcessor.speakToSir('জি স্যার, আপনার কম্পিউটারের স্ক্রিন লক করা হয়েছে।')
+        };
+      }
+
+      // E2. Unlock / Wake PC Screen & Dismiss Lock Curtain
+      if (intent.action === 'ACTION_UNLOCK_PC' || intent.action === 'ACTION_WAKE_PC') {
+        await wakePC();
+        const replyText = intent.reply || `জি স্যার, আপনার কম্পিউটারের ডিসপ্লে অন করে লক-স্ক্রিনের লগইন ডায়লগ সক্রিয় করা হয়েছে। উইন্ডোজ কার্নেল সিকিউরিটি পলিসি অনুযায়ী অনুগ্রহ করে আপনার পিন বা পাসওয়ার্ড দিয়ে আনলক সম্পন্ন করুন, স্যার।`;
+        return {
+          type: 'text',
+          replyText,
+          voiceAudioPath: await this.voiceProcessor.speakToSir(replyText)
         };
       }
 
@@ -514,18 +526,34 @@ Return ONLY valid JSON matching this schema:
     }
 
     // Lock PC
-    if (lower.includes('পিসি লক') || lower.includes('স্ক্রিন লক') || lower.includes('কম্পিউটার লক') || (lower.includes('লক') && lower.includes('করো'))) {
-      await lockPC();
-      const replyText = `জি স্যার, আপনার কম্পিউটারের স্ক্রিন তৎক্ষণাৎ লক করে দেওয়া হয়েছে।`;
+    if (lower.includes('পিসি লক') || lower.includes('স্ক্রিন লক') || lower.includes('কম্পিউটার লক') || (lower.includes('লক') && (lower.includes('করো') || lower.includes('কর') || lower.includes('lock')))) {
+      if (!lower.includes('আনলক') && !lower.includes('খোলো') && !lower.includes('ওপেন') && !lower.includes('unlock') && !lower.includes('open')) {
+        await lockPC();
+        const replyText = `জি স্যার, আপনার কম্পিউটারের স্ক্রিন তৎক্ষণাৎ লক করে দেওয়া হয়েছে।`;
+        return {
+          type: 'text',
+          replyText,
+          voiceAudioPath: await this.voiceProcessor.speakToSir('জি স্যার, আপনার কম্পিউটারের স্ক্রিন লক করা হয়েছে।')
+        };
+      }
+    }
+
+    // Unlock / Wake PC Screen
+    if (
+      (lower.includes('কম্পিউটার') || lower.includes('পিসি') || lower.includes('লক') || lower.includes('স্ক্রিন') || lower.includes('pc') || lower.includes('computer')) &&
+      (lower.includes('ওপেন') || lower.includes('আনলক') || lower.includes('খোলো') || lower.includes('অন করো') || lower.includes('জাগাও') || lower.includes('সক্রিয়') || lower.includes('unlock') || lower.includes('open') || lower.includes('wake'))
+    ) {
+      await wakePC();
+      const replyText = `জি স্যার, আপনার কম্পিউটারের ডিসপ্লে অন করে লক-স্ক্রিনের লগইন ডায়লগ প্রস্তুত করা হয়েছে। উইন্ডোজ কার্নেল সিকিউরিটি পলিসি অনুযায়ী অনুগ্রহ করে আপনার পিন বা পাসওয়ার্ড দিয়ে আনলক সম্পন্ন করুন, স্যার।`;
       return {
         type: 'text',
         replyText,
-        voiceAudioPath: await this.voiceProcessor.speakToSir('জি স্যার, আপনার কম্পিউটারের স্ক্রিন লক করা হয়েছে।')
+        voiceAudioPath: await this.voiceProcessor.speakToSir(replyText)
       };
     }
 
     // Empty Recycle Bin
-    if (lower.includes('রিসাইকেল বিন') || lower.includes('ট্র্যাশ') || (lower.includes('আবর্জনা') && lower.includes('খালি'))) {
+    if (lower.includes('রিসাইকেল বিন') || lower.includes('ট্র্যাশ') || (lower.includes('আবর্জনা') && lower.includes('খালি')) || lower.includes('recycle bin')) {
       await emptyRecycleBin();
       const replyText = `জি স্যার, কম্পিউটারের রিসাইকেল বিন সম্পূর্ণ খালি ও পরিষ্কার করা হয়েছে।`;
       return {
@@ -536,8 +564,8 @@ Return ONLY valid JSON matching this schema:
     }
 
     // App Launcher
-    if (lower.includes('খোলো') || lower.includes('ওপেন') || lower.includes('চালু করো') || lower.includes('চালাও')) {
-      if (lower.includes('ক্রোম') || lower.includes('chrome') || lower.includes('ব্রাউজার')) {
+    if (lower.includes('খোলো') || lower.includes('ওপেন') || lower.includes('চালু করো') || lower.includes('চালাও') || lower.includes('open') || lower.includes('launch') || lower.includes('start')) {
+      if (lower.includes('ক্রোম') || lower.includes('chrome') || lower.includes('ব্রাউজার') || lower.includes('browser') || lower.includes('google')) {
         await openApplication('chrome');
         const replyText = `জি স্যার, গুগল ক্রোম ব্রাউজার চালু করা হয়েছে।`;
         return { type: 'text', replyText, voiceAudioPath: await this.voiceProcessor.speakToSir(replyText) };
@@ -552,14 +580,24 @@ Return ONLY valid JSON matching this schema:
         const replyText = `জি স্যার, ক্যালকুলেটর ওপেন করা হয়েছে।`;
         return { type: 'text', replyText, voiceAudioPath: await this.voiceProcessor.speakToSir(replyText) };
       }
-      if (lower.includes('টাস্ক ম্যানেজার') || lower.includes('task manager')) {
+      if (lower.includes('টাস্ক ম্যানেজার') || lower.includes('task manager') || lower.includes('taskmgr')) {
         await openApplication('taskmgr');
         const replyText = `জি স্যার, টাস্ক ম্যানেজার ওপেন করা হয়েছে।`;
         return { type: 'text', replyText, voiceAudioPath: await this.voiceProcessor.speakToSir(replyText) };
       }
-      if (lower.includes('ফাইল ম্যানেজার') || lower.includes('explorer') || lower.includes('দিস পিসি')) {
+      if (lower.includes('ফাইল ম্যানেজার') || lower.includes('explorer') || lower.includes('দিস পিসি') || lower.includes('this pc')) {
         await openApplication('explorer');
         const replyText = `জি স্যার, ফাইল এক্সপ্লোরার ওপেন করা হয়েছে।`;
+        return { type: 'text', replyText, voiceAudioPath: await this.voiceProcessor.speakToSir(replyText) };
+      }
+      if (lower.includes('এজ') || lower.includes('edge')) {
+        await openApplication('edge');
+        const replyText = `জি স্যার, মাইক্রোসফট এজ ব্রাউজার চালু করা হয়েছে।`;
+        return { type: 'text', replyText, voiceAudioPath: await this.voiceProcessor.speakToSir(replyText) };
+      }
+      if (lower.includes('ব্রেভ') || lower.includes('brave')) {
+        await openApplication('brave');
+        const replyText = `জি স্যার, ব্রেভ ব্রাউজার চালু করা হয়েছে।`;
         return { type: 'text', replyText, voiceAudioPath: await this.voiceProcessor.speakToSir(replyText) };
       }
     }
