@@ -24,7 +24,7 @@ export function getSystemStatus() {
   };
 }
 
-// 2. Take Screen Capture
+// 2. Take Screen Capture (Native Win32 GDI with Desktop Switch + Fallback)
 export async function captureScreenshot(outputDir = 'C:\\Personal Agent\\Agent 1\\screenshots') {
   const fs = await import('fs');
   if (!fs.existsSync(outputDir)) {
@@ -35,9 +35,37 @@ export async function captureScreenshot(outputDir = 'C:\\Personal Agent\\Agent 1
   const filename = `screen_${timestamp}.png`;
   const filePath = path.join(outputDir, filename);
 
-  const imgBuffer = await screenshot({ format: 'png' });
-  await import('fs/promises').then(fsp => fsp.writeFile(filePath, imgBuffer));
-  return filePath;
+  const psScriptPath = path.join(process.cwd(), 'src', 'capture_screen.ps1');
+
+  // Method A: Native Win32 GDI worker thread with desktop switch
+  try {
+    const { execSync } = await import('child_process');
+    const cmd = `powershell.exe -NoProfile -ExecutionPolicy Bypass -File "${psScriptPath}" -OutputPath "${filePath}"`;
+    execSync(cmd, { stdio: 'ignore', timeout: 5000 });
+
+    if (fs.existsSync(filePath)) {
+      const stats = fs.statSync(filePath);
+      if (stats.size > 15000) {
+        console.log(`[ScreenCapture] Native capture successful: ${filePath} (${stats.size} bytes)`);
+        return filePath;
+      } else {
+        console.warn(`[ScreenCapture] Warning: Captured image was suspiciously small (${stats.size} bytes), trying fallback...`);
+      }
+    }
+  } catch (err) {
+    console.warn('[ScreenCapture] Native capture notice, trying fallback:', err.message);
+  }
+
+  // Method B: Fallback to screenshot-desktop library
+  try {
+    const imgBuffer = await screenshot({ format: 'png' });
+    await import('fs/promises').then(fsp => fsp.writeFile(filePath, imgBuffer));
+    console.log(`[ScreenCapture] Fallback capture saved to: ${filePath}`);
+    return filePath;
+  } catch (fbErr) {
+    console.error('[ScreenCapture] All screen capture methods failed:', fbErr.message);
+    throw fbErr;
+  }
 }
 
 // 3. Put PC to Sleep
