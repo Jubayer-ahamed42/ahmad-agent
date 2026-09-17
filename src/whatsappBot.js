@@ -366,18 +366,7 @@ export class WhatsAppService {
           if (fs.existsSync(this.qrImagePath)) {
             try { fs.unlinkSync(this.qrImagePath); } catch (e) {}
           }
-
-          if (this.telegramNotifier) {
-            const welcomeMsg =
-              `✅ <b>WhatsApp সফলভাবে সংযুক্ত হয়েছে!</b>\n\n` +
-              `সম্মানিত স্যার, আহমদ এখন আপনার WhatsApp এ ক্লায়েন্ট ও ইনকামিং বার্তা তদারকি করতে সম্পূর্ণ প্রস্তুত।\n` +
-              `• স্বয়ংক্রিয় সচিব বার্তা: ${this.config.autoReplyEnabled ? 'সক্রিয় (Active)' : 'নিষ্ক্রিয় (Off)'}\n` +
-              `• স্মার্ট কুলডাউন: ${this.config.cooldownHours} ঘণ্টা\n` +
-              `• গ্রুপ বার্তা ও স্ট্যাটাস: সম্পূর্ণ সুরক্ষিত ও ফিল্টার্ড।`;
-            try {
-              await this.telegramNotifier(welcomeMsg);
-            } catch (e) {}
-          }
+          // Note: Do NOT spam Sir's Telegram with connection messages on every socket reconnect
         }
 
         if (connection === 'close') {
@@ -385,6 +374,12 @@ export class WhatsAppService {
           this.status = 'disconnected';
           const statusCode = lastDisconnect?.error?.output?.statusCode;
           console.log(`[WhatsApp] Connection closed (status: ${statusCode}, wasConnected: ${wasConnected})`);
+
+          // 440: connectionReplaced (another device or session active) - DO NOT retry to avoid infinite ping-pong
+          if (statusCode === 440 || statusCode === DisconnectReason.connectionReplaced) {
+            console.log('[WhatsApp] Connection replaced by another session/device. Pausing reconnect to avoid collision.');
+            return;
+          }
 
           if (statusCode === DisconnectReason.loggedOut && wasConnected) {
             console.log('[WhatsApp] Logged out from phone by user. Wiping credentials for fresh pairing...');
@@ -394,23 +389,14 @@ export class WhatsAppService {
                 fs.rmSync(this.authDir, { recursive: true, force: true });
               }
             } catch (e) {}
-            if (this.telegramNotifier) {
-              await this.telegramNotifier(
-                '⚠️ <b>WhatsApp সেশন সমাপ্ত হয়েছে।</b>\nনতুন করে সংযোগ করতে টেলিগ্রামে <code>/whatsapp_qr</code> পাঠান, স্যার।'
-              );
-            }
+            return;
           }
 
           // Max retry limit চেক — ১৫ বার ব্যর্থ হলে থামবে
           this.retryCount++;
           if (this.retryCount > this.maxRetries) {
-            console.error(`[WhatsApp] Max retry limit (${this.maxRetries}) reached. Giving up. Restart Ahmad manually.`);
-            if (this.telegramNotifier) {
-              await this.telegramNotifier(
-                `🔴 <b>WhatsApp সংযোগ ব্যর্থ হয়েছে!</b>\n\n${this.maxRetries} বার চেষ্টার পরেও সংযোগ হয়নি। আহমদকে ম্যানুয়ালি পুনরায় চালু করুন, স্যার।\n<code>start.bat</code> চালিয়ে দিন।`
-              );
-            }
-            return; // ← restart করবে না
+            console.error(`[WhatsApp] Max retry limit (${this.maxRetries}) reached. Stopping reconnect.`);
+            return;
           }
 
           // Exponential backoff: ৩s, ৬s, ৯s... সর্বোচ্চ ৩০s

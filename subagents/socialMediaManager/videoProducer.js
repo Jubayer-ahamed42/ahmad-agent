@@ -1,11 +1,13 @@
-﻿import { EdgeTTS } from 'node-edge-tts';
+import { EdgeTTS } from 'node-edge-tts';
 import { exec } from 'child_process';
 import path from 'path';
 import fs from 'fs';
+import { DidService } from './didService.js';
 
 export class VideoProducer {
   constructor(outputDir = 'C:\\Personal Agent\\Agent 1\\subagents\\socialMediaManager\\output') {
     this.outputDir = outputDir;
+    this.didService = new DidService();
     if (!fs.existsSync(this.outputDir)) {
       fs.mkdirSync(this.outputDir, { recursive: true });
     }
@@ -182,5 +184,29 @@ export class VideoProducer {
       videoPath,
       facebookPostCopy: scriptData.facebookPostText
     };
+  }
+
+  // Generate Talking Face / Lip-Sync Avatar Video via D-ID API
+  async generateTalkingAvatar({ imagePath, audioPath, outputVideoPath = null }) {
+    if (!this.didService.isConfigured()) {
+      return {
+        success: false,
+        error: 'D-ID API Key (DID_API_KEY) .env ফাইলে পাওয়া যায়নি। অনুগ্রহ করে D-ID API Key কনফিগার করুন, স্যার।'
+      };
+    }
+
+    try {
+      const targetPath = outputVideoPath || path.join(this.outputDir, `talking_avatar_${Date.now()}.mp4`);
+      return await this.didService.produceTalkingAvatarVideo({
+        imagePath,
+        audioPath,
+        outputVideoPath: targetPath
+      });
+    } catch (err) {
+      return {
+        success: false,
+        error: err.message
+      };
+    }
   }
 }

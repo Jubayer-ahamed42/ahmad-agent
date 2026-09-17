@@ -39,8 +39,8 @@ try {
 
 // 4. Proactive Scheduler
 try {
-  const m = generateMorningBriefingText();
-  const n = generateNightSummaryText();
+  const m = await generateMorningBriefingText();
+  const n = await generateNightSummaryText();
   results.push({ test: 'Proactive Scheduler (06:00 AM & 09:00 PM)', status: 'PASS', detail: `Briefing & Summary generated (${m.length + n.length} chars)` });
 } catch (e) {
   results.push({ test: 'Proactive Scheduler', status: 'FAIL', detail: e.message });

@@ -1,4 +1,4 @@
-﻿import { exec } from 'child_process';
+import { exec } from 'child_process';
 import os from 'os';
 import path from 'path';
 import screenshot from 'screenshot-desktop';
@@ -26,12 +26,17 @@ export function getSystemStatus() {
 
 // 2. Take Screen Capture
 export async function captureScreenshot(outputDir = 'C:\\Personal Agent\\Agent 1\\screenshots') {
+  const fs = await import('fs');
+  if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir, { recursive: true });
+  }
+
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const filename = `screen_${timestamp}.png`;
   const filePath = path.join(outputDir, filename);
 
   const imgBuffer = await screenshot({ format: 'png' });
-  await import('fs/promises').then(fs => fs.writeFile(filePath, imgBuffer));
+  await import('fs/promises').then(fsp => fsp.writeFile(filePath, imgBuffer));
   return filePath;
 }
 

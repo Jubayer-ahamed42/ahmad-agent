@@ -79,6 +79,11 @@ export class SocialMediaManager {
     return await this.videoProducer.produceCompleteVideoPackage(topic, durationMinutes);
   }
 
+  // 3b. Realistic Talking Avatar Video Production (Lip-Sync via D-ID API)
+  async createTalkingAvatarVideo({ imagePath, audioPath, outputVideoPath = null }) {
+    return await this.videoProducer.generateTalkingAvatar({ imagePath, audioPath, outputVideoPath });
+  }
+
   // 4. Daily social media summary for Ahmad's 9:00 PM briefing
   getDailySocialSummary() {
     return {

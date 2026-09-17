@@ -1,9 +1,23 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
+import fs from 'fs';
+import net from 'net';
+
+// Single-instance enforcement: prevents Telegram 409 Conflict and duplicate WhatsApp sockets
+const LOCK_PORT = 38472;
+const lockServer = net.createServer();
+lockServer.once('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.warn('⚠️ Ahmad is already active in another window. Exiting duplicate instance.');
+    process.exit(0);
+  }
+});
+lockServer.listen(LOCK_PORT, '127.0.0.1');
+
 import { createTelegramBot } from './telegramBot.js';
 import { WhatsAppService } from './whatsappBot.js';
-import { setupScheduler, generateMorningBriefingText, generateNightSummaryText } from './scheduler.js';
+import { setupScheduler, generateMorningBriefingText, generateNightSummaryText, generateMorningVoiceBriefing, generateNightVoiceSummary } from './scheduler.js';
 import { runNightlyBackup } from './backup.js';
 import { getSystemStatus } from './systemController.js';
 
@@ -63,33 +77,52 @@ whatsapp.start().catch((err) => {
 // Setup Proactive Schedules
 setupScheduler({
   onMorningBriefing: async () => {
-    const text = generateMorningBriefingText();
-    console.log('\n' + text + '\n');
-    if (bot && process.env.TELEGRAM_OWNER_ID) {
-      try {
-        await bot.telegram.sendMessage(process.env.TELEGRAM_OWNER_ID, text, { parse_mode: 'Markdown' });
-      } catch (e) {
-        console.error('Failed to send morning briefing to Telegram:', e.message);
+    console.log('[Scheduler] Executing 06:00 AM Morning Briefing for Sir...');
+    try {
+      const text = await generateMorningBriefingText();
+      console.log('\n[Morning Briefing]\n' + text + '\n');
+      if (bot && process.env.TELEGRAM_OWNER_ID) {
+        try {
+          const voicePath = await generateMorningVoiceBriefing();
+          if (voicePath && fs.existsSync(voicePath)) {
+            await bot.telegram.sendVoice(process.env.TELEGRAM_OWNER_ID, { source: fs.createReadStream(voicePath) });
+          }
+        } catch (ve) {
+          console.error('[Scheduler] Voice morning note error:', ve.message);
+        }
+        await bot.telegram.sendMessage(process.env.TELEGRAM_OWNER_ID, text, { parse_mode: 'HTML' });
       }
+    } catch (e) {
+      console.error('[Scheduler] Failed to send morning briefing to Telegram:', e.message);
     }
   },
   onNightSummary: async () => {
-    // 1. Run Nightly Backup
-    await runNightlyBackup();
-
-    // 2. Send Summary with WhatsApp stats
-    let text = generateNightSummaryText();
-    if (whatsapp) {
-      const waStats = whatsapp.getStatus();
-      text += `\n\n📱 *WhatsApp ক্লায়েন্ট খতিয়ান:*\n• আজ প্রাপ্ত বার্তা: ${waStats.receivedToday}টি\n• আজ প্রেরিত সচিব জবাব: ${waStats.repliedToday}টি`;
+    console.log('[Scheduler] Executing 09:00 PM Night Summary for Sir...');
+    let backupOk = true;
+    try {
+      await runNightlyBackup();
+    } catch (e) {
+      backupOk = false;
+      console.error('[Scheduler] Nightly backup error:', e.message);
     }
-    console.log('\n' + text + '\n');
-    if (bot && process.env.TELEGRAM_OWNER_ID) {
-      try {
-        await bot.telegram.sendMessage(process.env.TELEGRAM_OWNER_ID, text, { parse_mode: 'Markdown' });
-      } catch (e) {
-        console.error('Failed to send night summary to Telegram:', e.message);
+
+    try {
+      const waStats = whatsapp ? whatsapp.getStatus() : null;
+      const text = await generateNightSummaryText({ whatsappStats: waStats, backupSuccess: backupOk });
+      console.log('\n[Night Summary]\n' + text + '\n');
+      if (bot && process.env.TELEGRAM_OWNER_ID) {
+        try {
+          const voicePath = await generateNightVoiceSummary();
+          if (voicePath && fs.existsSync(voicePath)) {
+            await bot.telegram.sendVoice(process.env.TELEGRAM_OWNER_ID, { source: fs.createReadStream(voicePath) });
+          }
+        } catch (ve) {
+          console.error('[Scheduler] Voice night note error:', ve.message);
+        }
+        await bot.telegram.sendMessage(process.env.TELEGRAM_OWNER_ID, text, { parse_mode: 'HTML' });
       }
+    } catch (e) {
+      console.error('[Scheduler] Failed to send night summary to Telegram:', e.message);
     }
   }
 });

@@ -52,6 +52,14 @@ async function sendOutcomeToSir(ctx, outcome) {
     }
   } else if (outcome.type === 'photo') {
     await ctx.replyWithPhoto({ source: outcome.photoPath }, { caption: outcome.replyText });
+  } else if (outcome.type === 'video') {
+    if (outcome.replyText) await ctx.reply(outcome.replyText, { parse_mode: 'HTML' });
+    try {
+      await ctx.replyWithVideo({ source: fs.createReadStream(outcome.videoPath) }, { caption: outcome.videoCaption || '🎬 আপনার ভিডিও, স্যার' });
+    } catch (ve) {
+      console.error('[Telegram] replyWithVideo fallback to document:', ve.message);
+      await ctx.replyWithDocument({ source: fs.createReadStream(outcome.videoPath), filename: path.basename(outcome.videoPath) });
+    }
   } else {
     // 'text' | 'video_package' | অন্য যেকোনো type
     try {
@@ -130,6 +138,8 @@ export function createTelegramBot(token, configuredOwnerId = null, whatsappServi
       `• /whatsapp_status - WhatsApp লাইভ স্ট্যাটাস ও ক্লায়েন্ট পরিসংখ্যান\n` +
       `• /whatsapp_reply &lt;on/off&gt; - স্বয়ংক্রিয় সচিব বার্তা নিয়ন্ত্রণ\n` +
       `• /whatsapp_exclude - পরিবার/ভিআইপি এক্সক্লুশন তালিকা\n` +
+      `• /content_plan - সাপ্তাহিক সোশ্যাল মিডিয়া কন্টেন্ট প্ল্যান\n` +
+      `• /desktop - ডেস্কটপ ফাইল অর্গানাইজেশন স্ট্যাটাস\n` +
       `• /shutdown - নিরাপদ ২FA কনফার্মেশন সহ শাটডাউন`;
 
     try {
@@ -231,17 +241,24 @@ export function createTelegramBot(token, configuredOwnerId = null, whatsappServi
   // /briefing
   bot.command('briefing', async (ctx) => {
     console.log('[Telegram] Executing /briefing command for Sir');
-    const text = generateMorningBriefingText()
-      .replace(/\*(.*?)\*/g, '<b>$1</b>');
-    await ctx.reply(text, { parse_mode: 'HTML' });
+    try {
+      const text = await generateMorningBriefingText();
+      await ctx.reply(text, { parse_mode: 'HTML' });
+    } catch (e) {
+      await ctx.reply(`⚠️ ব্রিফিং তৈরিতে ত্রুটি: ${e.message}`);
+    }
   });
 
   // /summary
   bot.command('summary', async (ctx) => {
     console.log('[Telegram] Executing /summary command for Sir');
-    const text = generateNightSummaryText()
-      .replace(/\*(.*?)\*/g, '<b>$1</b>');
-    await ctx.reply(text, { parse_mode: 'HTML' });
+    try {
+      const waStats = whatsappService ? whatsappService.getStatus() : null;
+      const text = await generateNightSummaryText({ whatsappStats: waStats });
+      await ctx.reply(text, { parse_mode: 'HTML' });
+    } catch (e) {
+      await ctx.reply(`⚠️ সামারি তৈরিতে ত্রুটি: ${e.message}`);
+    }
   });
 
   // /whatsapp_qr
@@ -464,6 +481,52 @@ export function createTelegramBot(token, configuredOwnerId = null, whatsappServi
     }
   });
 
+  // /content_plan
+  bot.command(['content_plan', 'content_calendar'], async (ctx) => {
+    console.log('[Telegram] Executing /content_plan for Sir');
+    try {
+      const { ContentScheduler } = await import('../subagents/socialMediaManager/contentScheduler.js');
+      const cs = new ContentScheduler();
+      const summary = cs.getPlanSummary();
+      let msg = `📅 <b>সাপ্তাহিক সোশ্যাল মিডিয়া কন্টেন্ট প্ল্যান (Be Smart With AI):</b>\n\n`;
+      summary.forEach(s => {
+        const statusIcon = s.status === 'published' ? '✅' : '📝';
+        msg += `${statusIcon} <b>Day ${s.id} (${s.day}):</b> ${escapeHtml(s.title)}\n   <i>ফোকাস: ${escapeHtml(s.topic)}</i>\n\n`;
+      });
+      msg += `💡 <i>যেকোনো দিনের পোস্ট দেখতে লিখুন:</i> <code>/post_preview 1</code>`;
+      await ctx.reply(msg, { parse_mode: 'HTML' });
+    } catch (e) {
+      await ctx.reply(`কন্টেন্ট প্ল্যান লোড করতে ত্রুটি: ${e.message}`);
+    }
+  });
+
+  // /post_preview <day>
+  bot.command(['post_preview', 'preview_day'], async (ctx) => {
+    const parts = ctx.message.text.split(' ');
+    const day = parts[1] || '1';
+    try {
+      const { ContentScheduler } = await import('../subagents/socialMediaManager/contentScheduler.js');
+      const cs = new ContentScheduler();
+      const postData = cs.getPostForDay(day);
+      if (!postData) return ctx.reply(`Day ${day} এর কোনো পোস্ট খুঁজে পাওয়া যায়নি, স্যার।`);
+      await ctx.reply(`📄 <b>Day ${day} (${postData.item.day}) পোস্ট প্রিভিউ:</b>\n\n${escapeHtml(postData.formattedText)}`, { parse_mode: 'HTML' });
+    } catch (e) {
+      await ctx.reply(`পোস্ট দেখতে ত্রুটি: ${e.message}`);
+    }
+  });
+
+  // /desktop
+  bot.command('desktop', async (ctx) => {
+    console.log('[Telegram] Executing /desktop scan for Sir');
+    try {
+      const { DesktopOrganizer } = await import('./desktopOrganizer.js');
+      const org = new DesktopOrganizer();
+      await ctx.reply(org.getSummaryReport(), { parse_mode: 'HTML' });
+    } catch (e) {
+      await ctx.reply(`ডেস্কটপ তথ্য দেখতে ত্রুটি: ${e.message}`);
+    }
+  });
+
   // /fb_recent
   bot.command('fb_recent', async (ctx) => {
     console.log('[Telegram] Executing /fb_recent for Sir');
@@ -485,6 +548,67 @@ export function createTelegramBot(token, configuredOwnerId = null, whatsappServi
     });
 
     await ctx.reply(msg, { parse_mode: 'HTML', disable_web_page_preview: true });
+  });
+
+  // /did_key <API_KEY>
+  bot.command('did_key', async (ctx) => {
+    const parts = ctx.message.text.split(/\s+/);
+    if (parts.length < 2) {
+      return ctx.reply('⚠️ ব্যবহারবিধি: /did_key <আপনার_D-ID_API_Key>\n\nউদাহরণ: /did_key c29tZWVtYWlsQGdtYWlsLmNvbQ:xxxx');
+    }
+    const key = parts.slice(1).join(' ').trim();
+    process.env.DID_API_KEY = key;
+
+    try {
+      const envPath = path.join(process.cwd(), '.env');
+      let envContent = fs.readFileSync(envPath, 'utf-8');
+      if (envContent.includes('DID_API_KEY=')) {
+        envContent = envContent.replace(/DID_API_KEY=.*/, `DID_API_KEY=${key}`);
+      } else {
+        envContent += `\nDID_API_KEY=${key}\n`;
+      }
+      fs.writeFileSync(envPath, envContent, 'utf-8');
+      await ctx.reply('✅ D-ID API Key সফলভাবে সেভ ও কনফিগার করা হয়েছে, স্যার!\n\nএখন জীবন্ত কথা বলা ভিডিও তৈরি করতে /make_avatar কমান্ড দিন।');
+    } catch (e) {
+      await ctx.reply(`⚠️ .env ফাইলে কি সেভ করতে সমস্যা হয়েছে: ${e.message}`);
+    }
+  });
+
+  // /make_avatar
+  bot.command(['make_avatar', 'avatar'], async (ctx) => {
+    const key = process.env.DID_API_KEY;
+    if (!key) {
+      return ctx.reply('⚠️ D-ID API Key কনফিগার করা নেই, স্যার।\nঅনুগ্রহ করে প্রথমে /did_key <API_KEY> দিয়ে কি সেভ করুন অথবা চ্যাটে আমাকে কি-টি দিন।');
+    }
+
+    const imgPath = path.join(process.cwd(), 'subagents/socialMediaManager/output/sir_portrait_crop.jpg');
+    const audioPath = path.join(process.cwd(), 'subagents/socialMediaManager/output/voice_ai_pros_cons.mp3');
+    const outVideoPath = path.join(process.cwd(), 'subagents/socialMediaManager/output/sir_talking_avatar_1min.mp4');
+
+    if (!fs.existsSync(imgPath) || !fs.existsSync(audioPath)) {
+      return ctx.reply('⚠️ প্রয়োজনীয় ছবি বা অডিও ফাইল পাওয়া যায়নি, স্যার।');
+    }
+
+    await ctx.reply('⏳ স্যার, ক্লাউড এআই দিয়ে আপনার মুখ, চোখ ও ঠোঁট নাড়ানো জীবন্ত অবতার ভিডিও রেন্ডার করা শুরু হয়েছে। এটি সাধারণত ১ থেকে ২ মিনিট সময় নেয়, অনুগ্রহ করে অপেক্ষা করুন...');
+
+    try {
+      const res = await ahmadBrain.subagents.delegateTalkingAvatarProduction({
+        imagePath: imgPath,
+        audioPath: audioPath,
+        outputVideoPath: outVideoPath
+      });
+
+      if (!res.success) {
+        return ctx.reply(`⚠️ অবতার তৈরিতে সমস্যা হয়েছে: ${escapeHtml(res.error)}`);
+      }
+
+      await ctx.reply('🎬 <b>স্যার, আপনার জীবন্ত এআই টকিং অবতার ভিডিও সম্পূর্ণ প্রস্তুত!</b>', { parse_mode: 'HTML' });
+      await ctx.replyWithVideo({ source: fs.createReadStream(res.videoPath) }, {
+        caption: '✨ Be Smart With AI - এআই ব্যবহারের সুবিধা ও অসুবিধা (Talking Avatar)'
+      });
+    } catch (err) {
+      await ctx.reply(`⚠️ ত্রুটি ঘটেছে: ${err.message}`);
+    }
   });
 
   // Voice Note Handler (Full Gemini 3.6 Flash Multimodal Audio STT)

@@ -20,6 +20,11 @@ export class SubagentManager {
     return await this.socialMedia.createVideoPackage(topic, durationMinutes);
   }
 
+  // Delegate realistic talking avatar creation (Lip-Sync via D-ID)
+  async delegateTalkingAvatarProduction({ imagePath, audioPath, outputVideoPath = null }) {
+    return await this.socialMedia.createTalkingAvatarVideo({ imagePath, audioPath, outputVideoPath });
+  }
+
   // Delegate project architecture
   delegateProjectPlan(projectName, techStack) {
     return this.codeExpert.createArchitecturePlan(projectName, techStack);

@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import { VoiceProcessor } from './voiceProcessor.js';
 import { SubagentManager } from './subagentManager.js';
 import { getSystemStatus, captureScreenshot, sleepPC, shutdownPC } from './systemController.js';
@@ -7,7 +9,7 @@ import { generateMorningBriefingText, generateNightSummaryText } from './schedul
 export class ExecutiveBrain {
   constructor() {
     this.name = 'আহমদ (Ahmad)';
-    this.title = 'Chief Executive Assistant & Confidant (50-Year Veteran Standard)';
+    this.title = 'Personal Executive AI Assistant & Chief of Staff';
     this.voiceProcessor = new VoiceProcessor();
     this.subagents = new SubagentManager();
   }
@@ -101,7 +103,45 @@ export class ExecutiveBrain {
       };
     }
 
-    // 4. Social Media Video Creation
+    // 4. Talking Avatar / Lip-Sync Video Production (D-ID)
+    if (lower.includes('অবতার') || lower.includes('টকিং') || (lower.includes('কথা বলা') && lower.includes('ভিডিও'))) {
+      const key = process.env.DID_API_KEY;
+      if (!key) {
+        return {
+          type: 'text',
+          replyText: 'স্যার, রিয়েলিস্টিক এআই টকিং অবতার তৈরির জন্য D-ID API Key প্রয়োজন। অনুগ্রহ করে টেলিগ্রামে <code>/did_key &lt;API_KEY&gt;</code> কমান্ড দিন অথবা চ্যাটে আমাকে কি-টি প্রদান করুন, স্যার।',
+          voiceAudioPath: await this.voiceProcessor.speakToSir('স্যার, টকিং অবতার ভিডিও তৈরির জন্য ডি আই ডি এপিআই কি প্রয়োজন। অনুগ্রহ করে আমাকে কি-টি প্রদান করুন, স্যার।')
+        };
+      }
+
+      const imgPath = path.resolve('subagents/socialMediaManager/output/sir_portrait_crop.jpg');
+      const audioPath = path.resolve('subagents/socialMediaManager/output/voice_ai_pros_cons.mp3');
+      const outVideoPath = path.resolve('subagents/socialMediaManager/output/sir_talking_avatar_1min.mp4');
+
+      const res = await this.subagents.delegateTalkingAvatarProduction({
+        imagePath: imgPath,
+        audioPath: audioPath,
+        outputVideoPath: outVideoPath
+      });
+
+      if (!res.success) {
+        return {
+          type: 'text',
+          replyText: `⚠️ স্যার, অবতার তৈরিতে সমস্যা হয়েছে: ${res.error}`,
+          voiceAudioPath: await this.voiceProcessor.speakToSir('স্যার, অবতার তৈরিতে একটি ত্রুটি দেখা দিয়েছে।')
+        };
+      }
+
+      return {
+        type: 'video',
+        videoPath: res.videoPath,
+        videoCaption: '🎬 Be Smart With AI - এআই ব্যবহারের সুবিধা ও অসুবিধা (Talking Avatar)',
+        replyText: '🎬 <b>স্যার, আপনার জীবন্ত কথা বলা এআই টকিং অবতার ভিডিও সম্পূর্ণ প্রস্তুত!</b>',
+        voiceAudioPath: await this.voiceProcessor.speakToSir('স্যার, আপনার জীবন্ত এআই টকিং অবতার ভিডিও সম্পূর্ণ প্রস্তুত করা হয়েছে।')
+      };
+    }
+
+    // 5. Social Media Video Creation
     if (lower.includes('ভিডিও') && (lower.includes('বানাও') || lower.includes('তৈরি') || lower.includes('করো'))) {
       // Determine duration
       let duration = 1;
@@ -271,9 +311,9 @@ export class ExecutiveBrain {
       const ai = new GoogleGenAI({ apiKey });
       
       const systemInstruction = 
-        `You are Ahmad (আহমদ), a 50-year veteran Executive Assistant and Chief of Staff to Sir. ` +
-        `Always address Sir respectfully as 'স্যার'. Maintain a calm, loyal, dignified, and exceptionally wise Bengali tone. ` +
-        `Keep responses concise, actionable, and elegant. Never break character.`;
+        `You are Ahmad (আহমদ), Sir's trusted, sharp, modern Personal Executive AI Assistant and Chief of Staff. ` +
+        `Always address Sir respectfully as 'স্যার'. Maintain a composed, proactive, exceptionally competent Bengali tone. ` +
+        `Execute tasks directly without fluff or unnecessary questions. Keep responses concise, actionable, and elegant. Never break character.`;
 
       const response = await ai.models.generateContent({
         model: 'gemini-3.6-flash',
