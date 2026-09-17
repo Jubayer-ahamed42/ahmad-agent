@@ -611,33 +611,59 @@ export function createTelegramBot(token, configuredOwnerId = null, whatsappServi
     }
   });
 
-  // Voice Note Handler (Full Gemini 3.6 Flash Multimodal Audio STT)
-  bot.on('voice', async (ctx) => {
-    console.log('[Telegram] Received voice message from Sir. Transcribing with Gemini 3.6 Flash...');
+  // Voice Note & Spoken Audio Handler (Gemini Multimodal Neural STT)
+  bot.on(['voice', 'audio'], async (ctx) => {
+    console.log('[Telegram] Received voice/audio message from Sir. Transcribing with Gemini Neural Engine...');
     try {
-      const fileId = ctx.message.voice.file_id;
+      const fileId = ctx.message.voice?.file_id || ctx.message.audio?.file_id;
+      if (!fileId) return;
+
       const fileLink = await ctx.telegram.getFileLink(fileId);
 
-      // 1. Fetch raw voice note buffer from Telegram
+      // 1. Download raw Telegram voice note to temp file in audio_cache
+      const tempId = Date.now();
+      const rawAudioPath = path.join(ahmadBrain.voiceProcessor.audioDir, `voice_in_${tempId}.oga`);
       const audioRes = await fetch(fileLink.href);
-      const audioBuffer = await audioRes.arrayBuffer();
+      const rawBuffer = Buffer.from(await audioRes.arrayBuffer());
+      fs.writeFileSync(rawAudioPath, rawBuffer);
 
-      // 2. Transcribe voice in Bengali using Gemini 3.6 Flash
-      const transcribedText = await ahmadBrain.transcribeAudio(audioBuffer, 'audio/ogg');
+      // 2. Convert to standard 24kHz mono MP3 via FFmpeg for universal Gemini audio decoding
+      let audioPathToTranscribe = rawAudioPath;
+      let mimeType = 'audio/ogg';
+
+      try {
+        const convertedMp3Path = await ahmadBrain.voiceProcessor.convertAudio(rawAudioPath, 'mp3');
+        if (fs.existsSync(convertedMp3Path)) {
+          audioPathToTranscribe = convertedMp3Path;
+          mimeType = 'audio/mp3';
+        }
+      } catch (convErr) {
+        console.warn('[Telegram Voice] FFmpeg conversion notice, using raw buffer:', convErr.message);
+      }
+
+      // 3. Transcribe speech in Bengali using Gemini
+      const fileBuffer = fs.readFileSync(audioPathToTranscribe);
+      const transcribedText = await ahmadBrain.transcribeAudio(fileBuffer, mimeType);
+
+      // Clean up temporary files
+      try { if (fs.existsSync(rawAudioPath)) fs.unlinkSync(rawAudioPath); } catch (e) {}
+      if (audioPathToTranscribe !== rawAudioPath) {
+        try { if (fs.existsSync(audioPathToTranscribe)) fs.unlinkSync(audioPathToTranscribe); } catch (e) {}
+      }
 
       if (!transcribedText) {
         return ctx.reply('স্যার, আপনার ভয়েস অডিওটি স্পষ্টভাবে বুঝতে পারিনি। অনুগ্রহ করে আরেকবার কথা বলে পাঠানোর বিনীত অনুরোধ করছি, স্যার।');
       }
 
-      await ctx.reply(`🎙️ <b>আপনার কণ্ঠের নির্দেশ:</b>\n<i>"${escapeHtml(transcribedText)}"</i>\n\nজি স্যার, আদেশটি পেয়েছি। এখনই সম্পন্ন করছি...`, { parse_mode: 'HTML' });
+      await ctx.reply(`🎙️ <b>আপনার কণ্ঠের নির্দেশ:</b>\n<i>"${escapeHtml(transcribedText)}"</i>\n\nজি স্যার, আদেশটি পেয়েছি। এখনই সম্পন্ন করছি...`, { parse_mode: 'HTML' });
 
-      // 3. Execute transcribed command
+      // 4. Execute transcribed command through executive brain
       const outcome = await ahmadBrain.processCommand(transcribedText, { fromVoice: true });
       await sendOutcomeToSir(ctx, outcome);
 
     } catch (err) {
       console.error('[Telegram] Voice processing error:', err);
-      await ctx.reply(`ভয়েস নির্দেশ পালনে সমস্যা হয়েছে, স্যার: ${err.message}`);
+      await ctx.reply(`ভয়েস নির্দেশ পালনে সমস্যা হয়েছে, স্যার: ${err.message}`);
     }
   });
 
