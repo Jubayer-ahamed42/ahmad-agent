@@ -2,7 +2,8 @@ import fs from 'fs';
 import path from 'path';
 import { VoiceProcessor } from './voiceProcessor.js';
 import { SubagentManager } from './subagentManager.js';
-import { getSystemStatus, captureScreenshot, sleepPC, shutdownPC } from './systemController.js';
+import { getSystemStatus, captureScreenshot, sleepPC, shutdownPC, lockPC, emptyRecycleBin, openApplication } from './systemController.js';
+import { DesktopOrganizer } from './desktopOrganizer.js';
 import { searchLocalFiles } from './fileSearch.js';
 import { generateMorningBriefingText, generateNightSummaryText } from './scheduler.js';
 
@@ -101,6 +102,88 @@ export class ExecutiveBrain {
         replyText,
         voiceAudioPath: await this.voiceProcessor.speakToSir('স্যার, আপনার কম্পিউটারের বর্তমান অবস্থা সম্পূর্ণ স্থিতিশীল ও স্বাভাবিক রয়েছে।')
       };
+    }
+
+    // 3b. Smart Desktop Organizer (Voice & Text)
+    if (lower.includes('ডেস্কটপ') && (lower.includes('গোছাও') || lower.includes('পরিষ্কার') || lower.includes('অর্গানাইজ') || lower.includes('সাজাও'))) {
+      const org = new DesktopOrganizer();
+      const res = org.organizeDesktop();
+      if (res.success) {
+        const replyText = `জি স্যার! আপনার ডেস্কটপ সফলভাবে গুছিয়ে দেওয়া হয়েছে। মোট <b>${res.movedCount}টি</b> আলগা ফাইলকে সুশৃঙ্খল ফোল্ডারে সরানো হয়েছে। আপনার কোনো অ্যাপ শর্টকাট বা কাজের ফোল্ডার পরিবর্তন করা হয়নি, স্যার।`;
+        return {
+          type: 'text',
+          replyText,
+          voiceAudioPath: await this.voiceProcessor.speakToSir('জি স্যার! আপনার ডেস্কটপ সুন্দরভাবে গুছিয়ে দেওয়া হয়েছে।')
+        };
+      } else {
+        return { type: 'text', replyText: `স্যার, ডেস্কটপ গোছাতে সমস্যা হয়েছে: ${res.error}` };
+      }
+    }
+
+    if (lower.includes('ডেস্কটপ') && (lower.includes('আনডু') || lower.includes('আগের মতো') || lower.includes('রিস্টোর'))) {
+      const org = new DesktopOrganizer();
+      const res = org.undoOrganize();
+      if (res.success) {
+        const replyText = `জি স্যার! ডেস্কটপের <b>${res.restoredCount}টি</b> ফাইলকে পুনরায় আগের মূল অবস্থানে ফিরিয়ে দেওয়া হয়েছে, স্যার।`;
+        return {
+          type: 'text',
+          replyText,
+          voiceAudioPath: await this.voiceProcessor.speakToSir('জি স্যার, ফাইলগুলো পুনরায় আগের জায়গায় ফিরিয়ে আনা হয়েছে।')
+        };
+      } else {
+        return { type: 'text', replyText: `স্যার, আনডু করতে সমস্যা হয়েছে: ${res.error}` };
+      }
+    }
+
+    // 3c. Screen Lock (Voice & Text)
+    if (lower.includes('পিসি লক') || lower.includes('স্ক্রিন লক') || lower.includes('কম্পিউটার লক') || (lower.includes('লক') && lower.includes('করো'))) {
+      await lockPC();
+      const replyText = `জি স্যার, আপনার কম্পিউটারের স্ক্রিন তৎক্ষণাৎ লক করে দেওয়া হয়েছে।`;
+      return {
+        type: 'text',
+        replyText,
+        voiceAudioPath: await this.voiceProcessor.speakToSir('জি স্যার, আপনার কম্পিউটারের স্ক্রিন লক করা হয়েছে।')
+      };
+    }
+
+    // 3d. Empty Recycle Bin (Voice & Text)
+    if (lower.includes('রিসাইকেল বিন') || lower.includes('ট্র্যাশ') || (lower.includes('আবর্জনা') && lower.includes('খালি'))) {
+      await emptyRecycleBin();
+      const replyText = `জি স্যার, কম্পিউটারের রিসাইকেল বিন সম্পূর্ণ খালি ও পরিষ্কার করা হয়েছে।`;
+      return {
+        type: 'text',
+        replyText,
+        voiceAudioPath: await this.voiceProcessor.speakToSir('জি স্যার, রিসাইকেল বিন সফলভাবে পরিষ্কার করা হয়েছে।')
+      };
+    }
+
+    // 3e. App Launcher by Voice / Text
+    if (lower.includes('ওপেন করো') || lower.includes('খোলো') || lower.includes('চালু করো') || lower.includes('চালাও')) {
+      if (lower.includes('ক্রোম') || lower.includes('chrome') || lower.includes('ব্রাউজার')) {
+        await openApplication('chrome');
+        const replyText = `জি স্যার, গুগল ক্রোম ব্রাউজার চালু করা হয়েছে।`;
+        return { type: 'text', replyText, voiceAudioPath: await this.voiceProcessor.speakToSir('জি স্যার, গুগল ক্রোম ব্রাউজার চালু করা হয়েছে।') };
+      }
+      if (lower.includes('নোটপ্যাড') || lower.includes('notepad')) {
+        await openApplication('notepad');
+        const replyText = `জি স্যার, নোটপ্যাড ওপেন করা হয়েছে।`;
+        return { type: 'text', replyText, voiceAudioPath: await this.voiceProcessor.speakToSir('জি স্যার, নোটপ্যাড ওপেন করা হয়েছে।') };
+      }
+      if (lower.includes('ক্যালকুলেটর') || lower.includes('calc')) {
+        await openApplication('calc');
+        const replyText = `জি স্যার, ক্যালকুলেটর ওপেন করা হয়েছে।`;
+        return { type: 'text', replyText, voiceAudioPath: await this.voiceProcessor.speakToSir('জি স্যার, ক্যালকুলেটর ওপেন করা হয়েছে।') };
+      }
+      if (lower.includes('টাস্ক ম্যানেজার') || lower.includes('task manager')) {
+        await openApplication('taskmgr');
+        const replyText = `জি স্যার, টাস্ক ম্যানেজার ওপেন করা হয়েছে।`;
+        return { type: 'text', replyText, voiceAudioPath: await this.voiceProcessor.speakToSir('জি স্যার, টাস্ক ম্যানেজার ওপেন করা হয়েছে।') };
+      }
+      if (lower.includes('ফাইল ম্যানেজার') || lower.includes('explorer') || lower.includes('দিস পিসি')) {
+        await openApplication('explorer');
+        const replyText = `জি স্যার, ফাইল এক্সপ্লোরার ওপেন করা হয়েছে।`;
+        return { type: 'text', replyText, voiceAudioPath: await this.voiceProcessor.speakToSir('জি স্যার, ফাইল এক্সপ্লোরার ওপেন করা হয়েছে।') };
+      }
     }
 
     // 4. Talking Avatar / Lip-Sync Video Production (D-ID)

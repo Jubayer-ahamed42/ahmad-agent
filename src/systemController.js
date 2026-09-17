@@ -69,3 +69,54 @@ export function restartPC() {
     });
   });
 }
+
+// 6. Lock PC Screen immediately
+export function lockPC() {
+  return new Promise((resolve, reject) => {
+    exec('rundll32.exe user32.dll,LockWorkStation', (err) => {
+      if (err) return reject(err);
+      resolve('PC screen locked, Sir.');
+    });
+  });
+}
+
+// 7. Empty Windows Recycle Bin
+export function emptyRecycleBin() {
+  return new Promise((resolve) => {
+    exec('powershell.exe -NoProfile -Command "try { Clear-RecycleBin -Force -ErrorAction SilentlyContinue } catch {}"', () => {
+      resolve('Recycle Bin emptied successfully, Sir.');
+    });
+  });
+}
+
+// 8. Open Application on PC
+export function openApplication(appName) {
+  const normalized = (appName || '').toLowerCase().trim();
+  let cmd = '';
+
+  if (normalized.includes('chrome') || normalized.includes('ক্রোম') || normalized.includes('browser') || normalized.includes('ব্রাউজার')) {
+    cmd = 'start chrome';
+  } else if (normalized.includes('notepad') || normalized.includes('নোটপ্যাড')) {
+    cmd = 'notepad.exe';
+  } else if (normalized.includes('calc') || normalized.includes('ক্যালকুলেটর')) {
+    cmd = 'calc.exe';
+  } else if (normalized.includes('explorer') || normalized.includes('ফাইল ম্যানেজার') || normalized.includes('দিস পিসি')) {
+    cmd = 'explorer.exe';
+  } else if (normalized.includes('taskmgr') || normalized.includes('টাস্ক ম্যানেজার')) {
+    cmd = 'taskmgr.exe';
+  } else if (normalized.includes('cmd') || normalized.includes('টার্মিনাল') || normalized.includes('কমান্ড')) {
+    cmd = 'start cmd.exe';
+  } else if (normalized.includes('edge') || normalized.includes('এজ')) {
+    cmd = 'start msedge';
+  } else {
+    cmd = `start "" "${appName}"`;
+  }
+
+  return new Promise((resolve, reject) => {
+    exec(cmd, (err) => {
+      if (err) return reject(err);
+      resolve(`Application launched: ${appName}`);
+    });
+  });
+}
+
