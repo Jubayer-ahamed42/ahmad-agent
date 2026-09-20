@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { VoiceProcessor } from './voiceProcessor.js';
 import { SubagentManager } from './subagentManager.js';
+import { SkillManager } from './skillManager.js';
 import { getSystemStatus, captureScreenshot, sleepPC, shutdownPC, lockPC, wakePC, emptyRecycleBin, openApplication } from './systemController.js';
 import { DesktopOrganizer } from './desktopOrganizer.js';
 import { searchLocalFiles } from './fileSearch.js';
@@ -14,6 +15,7 @@ export class ExecutiveBrain {
     this.title = 'Personal Executive AI Assistant & Chief of Staff';
     this.voiceProcessor = new VoiceProcessor();
     this.subagents = new SubagentManager();
+    this.skillManager = new SkillManager();
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -95,14 +97,203 @@ Return ONLY valid JSON matching this schema:
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
+  // 1b. Zero-Latency Local Fast-Path Synonym Classifier (0ms Response Engine)
+  // ─────────────────────────────────────────────────────────────────────────────
+  matchLocalFastIntent(input) {
+    const text = input.toLowerCase().trim();
+
+    // 1. Facebook Post (সকল বাংলা কথ্য রূপ)
+    if (
+      text.includes('পোস্ট পাবলিশ') ||
+      text.includes('পোস্ট কর') ||
+      text.includes('পোস্ট করো') ||
+      text.includes('পোস্ট দাও') ||
+      text.includes('ফেসবুকে পোস্ট') ||
+      text.includes('ফেসবুকে ছাড়ো') ||
+      text.includes('ফেসবুকে আপলোড') ||
+      text.includes('পেজে পোস্ট') ||
+      text.includes('পেজে দিয়ে দাও') ||
+      text.includes('পেজে ছাড়ো') ||
+      text.includes('পাবলিশ কর') ||
+      text.includes('পাবলিশ করো') ||
+      text.includes('স্ট্যাটাস দাও') ||
+      text.includes('ফেসবুক পোস্ট') ||
+      text.includes('fb post') ||
+      text.includes('facebook post')
+    ) {
+      return { action: 'ACTION_FB_POST', params: { postText: '' } };
+    }
+
+    // 2. PC Unlock / Display Wake (লক খোলা ও ডিসপ্লে ওয়েক)
+    if (
+      text.includes('কম্পিউটার ওপেন') ||
+      text.includes('কম্পিউটার খোলো') ||
+      text.includes('কম্পিউটার অন') ||
+      text.includes('পিসি ওপেন') ||
+      text.includes('পিসি খোলো') ||
+      text.includes('পিসি অন') ||
+      text.includes('পিসি স্টার্ট') ||
+      text.includes('লক খোলো') ||
+      text.includes('লক ওপেন') ||
+      text.includes('পিসি আনলক') ||
+      text.includes('পিসিটা আনলক') ||
+      text.includes('পিসিটা জাগাও') ||
+      text.includes('কম্পিউটার আনলক') ||
+      text.includes('স্ক্রিন অন') ||
+      text.includes('ডিসপ্লে অন') ||
+      text.includes('wake pc') ||
+      text.includes('unlock pc') ||
+      text.includes('open pc')
+    ) {
+      return { action: 'ACTION_UNLOCK_PC', params: {} };
+    }
+
+    // 3. PC Lock (পিসি লক)
+    if (
+      text.includes('কম্পিউটার লক') ||
+      text.includes('পিসি লক') ||
+      text.includes('লক করে দাও') ||
+      text.includes('লক করো') ||
+      text.includes('স্ক্রিন লক') ||
+      text.includes('বাইরে যাচ্ছি লক') ||
+      text.includes('lock pc')
+    ) {
+      return { action: 'ACTION_LOCK_PC', params: {} };
+    }
+
+    // 3b. PC Shutdown (পিসি শাটডাউন ও বন্ধ)
+    if (
+      text.includes('শাটডাউন') ||
+      text.includes('শাট ডাউন') ||
+      text.includes('কম্পিউটার বন্ধ') ||
+      text.includes('পিসি বন্ধ') ||
+      text.includes('পিসি অফ') ||
+      text.includes('কম্পিউটার অফ') ||
+      text.includes('shutdown') ||
+      text.includes('power off')
+    ) {
+      return { action: 'ACTION_SHUTDOWN', params: {} };
+    }
+
+    // 4. Open Application (অ্যাপ্লিকেশন ও ব্রাউজার ফোকাস)
+    if (
+      text.includes('ব্রাউজারে যাও') ||
+      text.includes('ব্রাউজার খোলো') ||
+      text.includes('ব্রাউজার ওপেন') ||
+      text.includes('ক্রোম খোলো') ||
+      text.includes('ক্রোম ওপেন') ||
+      text.includes('গুগল খোলো') ||
+      text.includes('গুগল ব্রাউজার') ||
+      text.includes('নেট ওপেন') ||
+      text.includes('open chrome') ||
+      text.includes('open browser')
+    ) {
+      return { action: 'ACTION_OPEN_APP', params: { appName: 'chrome' } };
+    }
+    if (text.includes('নোটপ্যাড') || text.includes('notepad')) {
+      return { action: 'ACTION_OPEN_APP', params: { appName: 'notepad' } };
+    }
+    if (text.includes('ক্যালকুলেটর') || text.includes('calculator') || text.includes('হিসাব করার জন্য')) {
+      return { action: 'ACTION_OPEN_APP', params: { appName: 'calc' } };
+    }
+    if (text.includes('ফাইল ম্যানেজার') || text.includes('দিস পিসি') || text.includes('ফাইল এক্সপ্লোরার') || text.includes('explorer')) {
+      return { action: 'ACTION_OPEN_APP', params: { appName: 'explorer' } };
+    }
+    if (text.includes('টাস্ক ম্যানেজার') || text.includes('task manager') || text.includes('taskmgr')) {
+      return { action: 'ACTION_OPEN_APP', params: { appName: 'taskmgr' } };
+    }
+
+    // 5. Screenshot (স্ক্রিনশট ও পিসির দৃশ্য)
+    if (
+      text.includes('স্ক্রিনশট') ||
+      text.includes('পিসির ছবি') ||
+      text.includes('স্ক্রিনটা দেখাও') ||
+      text.includes('স্ক্রিনের ছবি') ||
+      text.includes('কম্পিউটারে কি হচ্ছে') ||
+      text.includes('পিসির একটা ছবি') ||
+      text.includes('screenshot')
+    ) {
+      return { action: 'ACTION_SCREENSHOT', params: {} };
+    }
+
+    // 6. Recycle Bin / Clean PC (আবর্জনা পরিষ্কার)
+    if (
+      text.includes('রিসাইকেল বিন') ||
+      text.includes('আবর্জনা ফেলো') ||
+      text.includes('আবর্জনা ফেলে দাও') ||
+      text.includes('ময়লা ফেলো') ||
+      text.includes('পিসি পরিষ্কার') ||
+      text.includes('ক্যাচ মেমোরি খালি') ||
+      text.includes('empty recycle')
+    ) {
+      return { action: 'ACTION_EMPTY_RECYCLE_BIN', params: {} };
+    }
+
+    // 1c. Facebook Page Status & Follower Count (ফেসবুক পেজ স্ট্যাটাস)
+    if (
+      text.includes('ফেসবুক পেজের অবস্থা') ||
+      text.includes('পেজের অবস্থা') ||
+      text.includes('ফলোয়ার কত') ||
+      text.includes('ফলোয়ার কত') ||
+      text.includes('লাইক কত') ||
+      text.includes('পেজের স্ট্যাটাস') ||
+      text.includes('fb status') ||
+      text.includes('facebook status')
+    ) {
+      return { action: 'ACTION_FB_STATUS', params: {} };
+    }
+
+    // 7. System Status (কম্পিউটার স্বাস্থ্য ও অবস্থা)
+    if (
+      text.includes('পিসির স্বাস্থ্য') ||
+      text.includes('পিসি হেলথ') ||
+      text.includes('হার্ডওয়্যার') ||
+      text.includes('হার্ডওয়্যার') ||
+      text.includes('কম্পিউটারের অবস্থা') ||
+      text.includes('পিসির অবস্থা') ||
+      text.includes('স্ট্যাটাস রিপোর্ট') ||
+      text.includes('পিসি কেমন চলছে') ||
+      text.includes('সিস্টেম স্ট্যাটাস') ||
+      text.includes('system status')
+    ) {
+      return { action: 'ACTION_SYSTEM_STATUS', params: {} };
+    }
+
+    // 8. Content Plan (সোশ্যাল মিডিয়া শিডিউল)
+    if (
+      text.includes('কন্টেন্ট প্ল্যান') ||
+      text.includes('কনটেন্ট প্ল্যান') ||
+      text.includes('কন্টেন্ট ক্যালেন্ডার') ||
+      text.includes('কনটেন্ট ক্যালেন্ডার') ||
+      text.includes('সোশ্যাল মিডিয়া প্ল্যান') ||
+      text.includes('পোস্ট শিডিউল') ||
+      text.includes('শিডিউল করা পোস্ট') ||
+      text.includes('ক্যালেন্ডার দেখাও') ||
+      text.includes('সাপ্তাহিক প্ল্যান') ||
+      text.includes('content plan')
+    ) {
+      return { action: 'ACTION_CONTENT_PLAN', params: {} };
+    }
+
+    return null;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
   // 2. Main Executive Command Processor (Voice & Text)
   // ─────────────────────────────────────────────────────────────────────────────
   async processCommand(rawInput, { fromVoice = false } = {}) {
     const input = rawInput.trim();
     console.log(`[আহমদ Executive Brain] Processing ${fromVoice ? 'VOICE' : 'TEXT'} command: "${input}"`);
 
-    // 1. Primary Neural Processing: Semantic Intent Engine
-    const intent = await this.classifyIntentWithGemini(input);
+    // 1. Zero-Latency Local Fast-Path Synonyms (0ms)
+    let intent = this.matchLocalFastIntent(input);
+    if (intent) {
+      console.log(`[Executive Brain] Local Fast-Path Matched (0ms): ${intent.action}`, intent.params);
+    } else {
+      // 2. Deep Neural Semantic Processing via Gemini
+      intent = await this.classifyIntentWithGemini(input);
+    }
+
     if (intent && intent.action) {
       console.log(`[Executive Brain] Neural Intent Detected: ${intent.action}`, intent.params);
 
@@ -172,6 +363,33 @@ Return ONLY valid JSON matching this schema:
         };
       }
 
+      // E1b. Shutdown PC (Action-Allowed: Selective Gating)
+      if (intent.action === 'ACTION_SHUTDOWN') {
+        const isExplicitConfirm = /সরাসরি|নিশ্চিত|confirm|force/i.test(input);
+        if (!isExplicitConfirm) {
+          const pending = this.skillManager.stagePendingAction(
+            'pc-controller',
+            'shutdown',
+            {},
+            'কম্পিউটার সম্পূর্ণ শাটডাউন ও বন্ধ হয়ে যাবে।'
+          );
+          return {
+            type: 'draft_action',
+            actionId: pending.id,
+            skillName: 'pc-controller',
+            actionType: 'shutdown',
+            previewText: `⚠️ <b>কম্পিউটার শাটডাউন সতর্কতা:</b>\n\nস্যার, আপনি কি নিশ্চিতভাবে কম্পিউটারটি শাটডাউন করতে চান?\nঅনুমোদন দিলে কম্পিউটার তাৎক্ষণিকভাবে বন্ধ হয়ে যাবে।`,
+            replyText: `স্যার, শাটডাউন একটি সর্বোচ্চ অগ্রাধিকারপ্রাপ্ত ও অপরিবর্তনীয় অ্যাকশন। নিচে বাটন চেপে নিশ্চিত করুন:`
+          };
+        }
+
+        await shutdownPC();
+        return {
+          type: 'text',
+          replyText: 'কম্পিউটার শাটডাউন করা হচ্ছে, স্যার। আপনার দিনটি শুভ হোক!'
+        };
+      }
+
       // E2. Unlock / Wake PC Screen & Dismiss Lock Curtain
       if (intent.action === 'ACTION_UNLOCK_PC' || intent.action === 'ACTION_WAKE_PC') {
         await wakePC();
@@ -183,8 +401,26 @@ Return ONLY valid JSON matching this schema:
         };
       }
 
-      // F. Empty Recycle Bin
+      // F. Empty Recycle Bin (Action-Allowed: Selective Gating)
       if (intent.action === 'ACTION_EMPTY_RECYCLE_BIN') {
+        const isExplicitConfirm = /সরাসরি|নিশ্চিত|confirm|force|হাঁ|হ্যাঁ/i.test(input);
+        if (!isExplicitConfirm) {
+          const pending = this.skillManager.stagePendingAction(
+            'pc-controller',
+            'empty_recycle_bin',
+            {},
+            'কম্পিউটারের রিসাইকেল বিন খালি করে অপ্রয়োজনীয় ফাইল চিরতরে মুছে ফেলা হবে।'
+          );
+          return {
+            type: 'draft_action',
+            actionId: pending.id,
+            skillName: 'pc-controller',
+            actionType: 'empty_recycle_bin',
+            previewText: `🗑️ <b>রিসাইকেল বিন পরিষ্কারের অনুমোদন:</b>\n\nস্যার, রিসাইকেল বিনের সকল ফাইল স্থায়ীভাবে মুছে ফেলা হবে। আপনি কি নিশ্চিত?`,
+            replyText: `স্যার, রিসাইকেল বিন খালি করার কাজটি অ্যাকশন-অনুমোদিত স্তরের। নিচে বাটন চেপে অনুমোদন দিন:`
+          };
+        }
+
         await emptyRecycleBin();
         const replyText = intent.reply || `জি স্যার, কম্পিউটারের রিসাইকেল বিন সম্পূর্ণ খালি ও পরিষ্কার করা হয়েছে।`;
         return {
@@ -236,19 +472,76 @@ Return ONLY valid JSON matching this schema:
         }
       }
 
-      // J. Facebook Post Publishing
+      // J. Facebook Post Publishing (Dual-Engine: API + Browser Fallback)
       if (intent.action === 'ACTION_FB_POST') {
-        const postText = intent.params?.postText || input.replace(/ফেসবুক|facebook|পোস্ট|post/gi, '').trim() || 'আসসালামু আলাইকুম! আমাদের পেজে আপনাদের স্বাগতম। আধুনিক প্রযুক্তি ও প্রফেশনাল সলিউশনের জন্য আমাদের সাথেই থাকুন।';
+        let postText = intent.params?.postText?.trim();
+
+        // If no post text specified, fetch the next ready post from the content calendar
+        if (!postText) {
+          try {
+            const cs = new ContentScheduler();
+            const nextPost = cs.getNextScheduledPost();
+            if (nextPost && nextPost.formattedText) {
+              postText = nextPost.formattedText;
+              console.log(`[Executive Brain] Using scheduled calendar post: "${nextPost.item.title}"`);
+            }
+          } catch (e) {
+            console.warn('[Executive Brain] Notice fetching scheduled post:', e.message);
+          }
+        }
+
+        if (!postText) {
+          postText = input.replace(/ফেসবুক|facebook|পোস্ট|post|পাবলিশ|করো|কর|দাও/gi, '').trim();
+        }
+
+        if (!postText) {
+          postText = 'আসসালামু আলাইকুম! আমাদের পেজে আপনাদের স্বাগতম। আধুনিক প্রযুক্তি ও প্রফেশনাল সলিউশনের জন্য আমাদের সাথেই থাকুন।';
+        }
+
+        const isExplicitConfirm = /সরাসরি|নিশ্চিত|confirm|force|অনুমোদন/i.test(input);
+        if (!isExplicitConfirm) {
+          const previewSnippet = postText.length > 200 ? postText.substring(0, 200) + '...' : postText;
+          const pending = this.skillManager.stagePendingAction(
+            'facebook-manager',
+            'publish',
+            { postText },
+            previewSnippet
+          );
+          return {
+            type: 'draft_action',
+            actionId: pending.id,
+            skillName: 'facebook-manager',
+            actionType: 'publish',
+            previewText: `📢 <b>ফেসবুক পোস্ট প্রকাশ অনুমোদন:</b>\n\n📝 <b>প্রিভিউ:</b>\n<i>"${previewSnippet}"</i>\n\n<i>অনুমোদন দিলে পোস্টটি ক্লিপবোর্ডে কপি হয়ে ক্রোম ব্রাউজারে পেজ কম্পোজার স্বয়ংক্রিয়ভাবে খুলে যাবে, স্যার।</i>`,
+            replyText: `স্যার, ফেসবুক পেজের পোস্টটি প্রস্তুত করা হয়েছে। নিচে বাটনে ট্যাপ করে অনুমোদন দিন:`
+          };
+        }
+
         const res = await this.subagents.delegateFacebookPost(postText);
         if (res.success) {
-          const replyText =
-            `জি স্যার! আপনার নির্দেশমতো আমি সোশ্যাল মিডিয়া ম্যানেজারকে দিয়ে ফেসবুক পেজে সফলভাবে পোস্ট পাবলিশ করিয়েছি, স্যার।\n\n` +
-            `📝 <b>পোস্টের বিবরণ:</b>\n"${postText}"\n\n` +
-            `🔗 <b>লিংক:</b> <a href="${res.postUrl}">এখানে দেখুন</a>`;
+          let replyText = '';
+          if (res.viaBrowser) {
+            replyText =
+              `জি স্যার! আপনার নির্দেশমতো আজকের পোস্টটি প্রস্তুত করে দেওয়া হয়েছে, স্যার।\n\n` +
+              `📋 <b>ক্লিপবোর্ডে কপি সম্পন্ন:</b> সম্পূর্ণ পোস্টটি আপনার পিসির ক্লিপবোর্ডে কপি করা আছে।\n` +
+              `🌐 <b>কম্পোজার প্রস্তুত:</b> আপনার ক্রোম ব্রাউজারে পেজের পোস্ট কম্পোজার সরাসরি খুলে দেওয়া হয়েছে।\n\n` +
+              `📝 <b>পোস্টের প্রিভিউ:</b>\n"${postText.substring(0, 180)}..."\n\n` +
+              `👉 শুধু একবার পেজে <b>Ctrl+V</b> দিয়ে <b>Publish</b> বাটনে চাপ দিন, স্যার!`;
+          } else {
+            replyText =
+              `জি স্যার! আপনার নির্দেশমতো আমি সোশ্যাল মিডিয়া ম্যানেজারকে দিয়ে ফেসবুক পেজে সফলভাবে পোস্ট পাবলিশ করিয়েছি, স্যার।\n\n` +
+              `📝 <b>পোস্টের বিবরণ:</b>\n"${postText}"\n\n` +
+              `🔗 <b>লিংক:</b> <a href="${res.postUrl}">এখানে দেখুন</a>`;
+          }
+
           return {
             type: 'text',
             replyText,
-            voiceAudioPath: await this.voiceProcessor.speakToSir('জি স্যার, আপনার ফেসবুক পেজে সফলভাবে পোস্ট পাবলিশ করা হয়েছে, স্যার।')
+            voiceAudioPath: await this.voiceProcessor.speakToSir(
+              res.viaBrowser
+                ? 'জি স্যার, ফেসবুক পোস্টের কম্পোজার আপনার ব্রাউজারে প্রস্তুত করে দেওয়া হয়েছে।'
+                : 'জি স্যার, আপনার ফেসবুক পেজে সফলভাবে পোস্ট পাবলিশ করা হয়েছে, স্যার।'
+            )
           };
         } else {
           return {

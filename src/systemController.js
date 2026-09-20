@@ -25,7 +25,11 @@ export function getSystemStatus() {
 }
 
 // 2. Take Screen Capture (Native Win32 GDI with Desktop Switch + Fallback)
-export async function captureScreenshot(outputDir = 'C:\\Personal Agent\\Agent 1\\screenshots') {
+export async function captureScreenshot(outputDir = path.join(process.cwd(), 'screenshots')) {
+  if (process.platform !== 'win32') {
+    throw new Error('স্যার, আপনার উইন্ডোজ কম্পিউটারটি বর্তমানে অফলাইনে আছে। লোকাল পিসি চালু হলে স্ক্রিনশট ফিচারটি স্বয়ংক্রিয়ভাবে সক্রিয় হবে, স্যার।');
+  }
+
   const fs = await import('fs');
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir, { recursive: true });
@@ -71,6 +75,9 @@ export async function captureScreenshot(outputDir = 'C:\\Personal Agent\\Agent 1
 // 3. Put PC to Sleep
 export function sleepPC() {
   return new Promise((resolve, reject) => {
+    if (process.platform !== 'win32') {
+      return resolve('স্যার, আপনার উইন্ডোজ কম্পিউটারটি বর্তমানে অফলাইনে আছে।');
+    }
     exec('rundll32.exe powrprof.dll,SetSuspendState 0,1,0', (err, stdout) => {
       if (err) return reject(err);
       resolve('PC going to sleep mode, Sir.');
@@ -81,6 +88,9 @@ export function sleepPC() {
 // 4. Shutdown PC (requires explicit 2FA)
 export function shutdownPC() {
   return new Promise((resolve, reject) => {
+    if (process.platform !== 'win32') {
+      return resolve('স্যার, আপনার উইন্ডোজ কম্পিউটারটি বর্তমানে অফলাইনে আছে।');
+    }
     exec('shutdown /s /t 0', (err, stdout) => {
       if (err) return reject(err);
       resolve('PC shutting down, Sir.');
@@ -91,6 +101,9 @@ export function shutdownPC() {
 // 5. Restart PC
 export function restartPC() {
   return new Promise((resolve, reject) => {
+    if (process.platform !== 'win32') {
+      return resolve('স্যার, আপনার উইন্ডোজ কম্পিউটারটি বর্তমানে অফলাইনে আছে।');
+    }
     exec('shutdown /r /t 0', (err, stdout) => {
       if (err) return reject(err);
       resolve('PC restarting, Sir.');
@@ -101,6 +114,9 @@ export function restartPC() {
 // 6. Lock PC Screen immediately
 export function lockPC() {
   return new Promise((resolve, reject) => {
+    if (process.platform !== 'win32') {
+      return resolve('স্যার, আপনার উইন্ডোজ কম্পিউটারটি বর্তমানে অফলাইনে আছে।');
+    }
     exec('rundll32.exe user32.dll,LockWorkStation', (err) => {
       if (err) return reject(err);
       resolve('PC screen locked, Sir.');
@@ -111,6 +127,9 @@ export function lockPC() {
 // 7. Empty Windows Recycle Bin
 export function emptyRecycleBin() {
   return new Promise((resolve) => {
+    if (process.platform !== 'win32') {
+      return resolve('স্যার, আপনার উইন্ডোজ কম্পিউটারটি বর্তমানে অফলাইনে আছে।');
+    }
     exec('powershell.exe -NoProfile -Command "try { Clear-RecycleBin -Force -ErrorAction SilentlyContinue } catch {}"', () => {
       resolve('Recycle Bin emptied successfully, Sir.');
     });
@@ -118,19 +137,24 @@ export function emptyRecycleBin() {
 }
 
 // 8. Open Application on PC (Interactive Session & WMI Launch)
-export function openApplication(appName) {
+export function openApplication(appName, args = '') {
   return new Promise((resolve) => {
+    if (process.platform !== 'win32') {
+      return resolve(`স্যার, আপনার উইন্ডোজ কম্পিউটারটি বর্তমানে অফলাইনে থাকায় ${appName} চালু করা সম্ভব হয়নি।`);
+    }
     const psScriptPath = path.join(process.cwd(), 'src', 'open_app.ps1');
     const safeApp = (appName || 'chrome').replace(/["']/g, '');
-    const cmd = `powershell.exe -NoProfile -ExecutionPolicy Bypass -File "${psScriptPath}" -AppName "${safeApp}"`;
+    const safeArgs = (args || '').replace(/["']/g, '`"');
+    const cmdPart = safeArgs ? ` -Arguments "${safeArgs}"` : '';
+    const cmd = `powershell.exe -NoProfile -ExecutionPolicy Bypass -File "${psScriptPath}" -AppName "${safeApp}"${cmdPart}`;
     
     exec(cmd, { timeout: 5000 }, (err, stdout) => {
       if (err) {
         console.warn(`[openApplication] Notice: ${err.message}`);
       } else if (stdout) {
-        console.log(stdout.trim());
+        console.log(`[openApplication] Output: ${stdout.trim()}`);
       }
-      resolve(`Application launched: ${appName}`);
+      resolve(`Launched ${appName}, Sir.`);
     });
   });
 }
@@ -138,6 +162,9 @@ export function openApplication(appName) {
 // 9. Wake PC & Activate Lock Screen / Login Prompt
 export function wakePC() {
   return new Promise((resolve) => {
+    if (process.platform !== 'win32') {
+      return resolve('স্যার, আপনার উইন্ডোজ কম্পিউটারটি বর্তমানে অফলাইনে আছে।');
+    }
     const psScriptPath = path.join(process.cwd(), 'src', 'wake_pc.ps1');
     const cmd = `powershell.exe -NoProfile -ExecutionPolicy Bypass -File "${psScriptPath}"`;
     

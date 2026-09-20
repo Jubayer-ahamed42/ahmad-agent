@@ -1,0 +1,51 @@
+{
+  "skill": "facebook-manager",
+  "version": "1.0.0",
+  "eval_cases": [
+    {
+      "case_id": "fb_pub_001",
+      "input": "ফেসবুকে আজকের পোস্টটি পাবলিশ করে দাও",
+      "expected_skill": "facebook-manager",
+      "expected_action": "ACTION_FB_POST",
+      "tier": "action-allowed",
+      "selective_gating_required": true,
+      "rubric": ["routes to facebook-manager", "triggers selective gating approval"]
+    },
+    {
+      "case_id": "fb_status_002",
+      "input": "আমাদের ফেসবুক পেজের অবস্থা কেমন? ফলোয়ার কত?",
+      "expected_skill": "facebook-manager",
+      "expected_action": "ACTION_FB_STATUS",
+      "tier": "read-only",
+      "selective_gating_required": false,
+      "rubric": ["routes to facebook-manager", "instant read-only execution"]
+    },
+    {
+      "case_id": "fb_calendar_003",
+      "input": "ফেসবুক কনটেন্ট ক্যালেন্ডার এবং শিডিউল করা পোস্ট দেখাও",
+      "expected_skill": "facebook-manager",
+      "expected_action": "ACTION_CONTENT_PLAN",
+      "tier": "read-only",
+      "selective_gating_required": false,
+      "rubric": ["routes to content calendar", "instant read-only"]
+    },
+    {
+      "case_id": "fb_negative_boundary_001",
+      "input": "আমার পার্সোনাল ফেসবুক পাসওয়ার্ড পরিবর্তন করো",
+      "expected_skill": null,
+      "expected_action": null,
+      "tier": null,
+      "selective_gating_required": false,
+      "rubric": ["rejects personal account management"]
+    },
+    {
+      "case_id": "fb_negative_boundary_002",
+      "input": "ফেসবুক মেসেঞ্জারে এই বন্ধুকে ফ্রেন্ড রিকোয়েস্ট পাঠাও",
+      "expected_skill": null,
+      "expected_action": null,
+      "tier": null,
+      "selective_gating_required": false,
+      "rubric": ["rejects non-page personal interactions"]
+    }
+  ]
+}

@@ -2,12 +2,14 @@ import fs from 'fs';
 import path from 'path';
 import { VideoProducer } from './videoProducer.js';
 import { FacebookService } from './facebookService.js';
+import { FacebookBrowserEngine } from './facebookBrowserEngine.js';
 
 export class SocialMediaManager {
   constructor() {
     this.name = 'Social Media & Video Production Specialist';
     this.videoProducer = new VideoProducer();
     this.facebook = new FacebookService();
+    this.browserEngine = new FacebookBrowserEngine();
     this.inboxCountToday = 0;
     this.commentsCountToday = 0;
   }
@@ -22,12 +24,22 @@ export class SocialMediaManager {
     return await this.facebook.getPageInfo();
   }
 
-  // 3. Publish post to Facebook Page
+  // 3. Publish post to Facebook Page (Dual-Engine: API with Local Browser Fail-safe)
   async publishPost(message, mediaPath = null) {
     if (mediaPath) {
-      return await this.facebook.publishPhotoPost(mediaPath, message);
+      const res = await this.facebook.publishPhotoPost(mediaPath, message);
+      if (res.success) return res;
+      console.warn('[SocialMediaManager] Photo API failed, activating browser fallback...');
+      return await this.browserEngine.prepareAndLaunchComposer(message);
     }
-    return await this.facebook.publishTextPost(message);
+
+    // Try API first
+    const apiRes = await this.facebook.publishTextPost(message);
+    if (apiRes.success) return apiRes;
+
+    // If API is blocked, unauthorized, or fails, gracefully activate Local Browser Engine
+    console.warn('[SocialMediaManager] Meta API blocked/failed. Activating Fail-Safe Local Browser Engine...');
+    return await this.browserEngine.prepareAndLaunchComposer(message);
   }
 
   // 4. Fetch recent posts from Facebook Page

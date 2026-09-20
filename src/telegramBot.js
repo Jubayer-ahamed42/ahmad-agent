@@ -60,6 +60,17 @@ async function sendOutcomeToSir(ctx, outcome) {
       console.error('[Telegram] replyWithVideo fallback to document:', ve.message);
       await ctx.replyWithDocument({ source: fs.createReadStream(outcome.videoPath), filename: path.basename(outcome.videoPath) });
     }
+  } else if (outcome.type === 'draft_action') {
+    const actionKeyboard = Markup.inlineKeyboard([
+      [
+        Markup.button.callback('✅ অনুমোদন ও সম্পন্ন করো', `approve_action:${outcome.actionId}`),
+        Markup.button.callback('❌ বাতিল', `cancel_action:${outcome.actionId}`)
+      ]
+    ]);
+    await ctx.reply(`${outcome.replyText}\n\n${outcome.previewText}`, {
+      parse_mode: 'HTML',
+      ...actionKeyboard
+    });
   } else {
     // 'text' | 'video_package' | অন্য যেকোনো type
     try {
@@ -236,6 +247,39 @@ export function createTelegramBot(token, configuredOwnerId = null, whatsappServi
     console.log('[Telegram] Sir cancelled shutdown.');
     await ctx.answerCbQuery();
     await ctx.editMessageText('শাটডাউন নির্দেশ বাতিল করা হয়েছে, স্যার। কম্পিউটার যথারীতি সচল রয়েছে।');
+  });
+
+  // Dynamic 1-Click Skill Action Approvals (Selective Gating)
+  bot.action(/^approve_action:(.+)$/, async (ctx) => {
+    const actionId = ctx.match[1];
+    console.log(`[Telegram] Sir clicked approve for action: ${actionId}`);
+    try {
+      await ctx.answerCbQuery('অনুমোদিত! কাজ শুরু হচ্ছে...');
+      await ctx.editMessageText('⏳ <b>কাজটি সম্পন্ন করা হচ্ছে, স্যার...</b>', { parse_mode: 'HTML' });
+      const result = await ahmadBrain.skillManager.executePendingAction(actionId);
+      if (result.success) {
+        await ctx.editMessageText(`✅ <b>সফলভাবে সম্পন্ন হয়েছে, স্যার!</b>\n\n${result.message}`, { parse_mode: 'HTML' });
+      } else {
+        await ctx.editMessageText(`⚠️ <b>সমস্যা হয়েছে, স্যার:</b> ${result.error}`, { parse_mode: 'HTML' });
+      }
+    } catch (err) {
+      console.error('[Telegram] Error executing approved action:', err);
+      try {
+        await ctx.reply(`কাজে ত্রুটি হয়েছে, স্যার: ${err.message}`);
+      } catch (e) {}
+    }
+  });
+
+  bot.action(/^cancel_action:(.+)$/, async (ctx) => {
+    const actionId = ctx.match[1];
+    console.log(`[Telegram] Sir clicked cancel for action: ${actionId}`);
+    ahmadBrain.skillManager.cancelPendingAction(actionId);
+    try {
+      await ctx.answerCbQuery('বাতিল করা হয়েছে');
+      await ctx.editMessageText('❌ <b>অনুরোধটি বাতিল করা হয়েছে, স্যার।</b> কোনো পরিবর্তন করা হয়নি।', { parse_mode: 'HTML' });
+    } catch (err) {
+      console.error('[Telegram] Error canceling action:', err);
+    }
   });
 
   // /briefing
@@ -471,13 +515,23 @@ export function createTelegramBot(token, configuredOwnerId = null, whatsappServi
     await ctx.reply('⏳ ফেসবুক পেজে পোস্ট পাবলিশ করা হচ্ছে, স্যার...');
     const res = await ahmadBrain.subagents.delegateFacebookPost(postText);
     if (res.success) {
-      await ctx.reply(
-        `✅ <b>ফেসবুক পেজে সফলভাবে পোস্ট পাবলিশ হয়েছে, স্যার!</b>\n\n` +
-        `🔗 <b>পোস্ট লিংক:</b> <a href="${res.postUrl}">এখানে দেখুন</a>`,
-        { parse_mode: 'HTML' }
-      );
+      if (res.viaBrowser) {
+        await ctx.reply(
+          `✅ <b>পোস্ট প্রস্তুত ও পেজ কম্পোজার ওপেন হয়েছে, স্যার!</b>\n\n` +
+          `📋 <b>ক্লিপবোর্ডে কপি সম্পন্ন:</b> সম্পূর্ণ পোস্টটি আপনার পিসির ক্লিপবোর্ডে কপি করা আছে।\n` +
+          `🌐 <b>ব্রাউজারে পেজ ওপেন:</b> গুগল ক্রোমে আপনার ফেসবুক পেজের পোস্ট কম্পোজার সরাসরি খুলে দেওয়া হয়েছে।\n\n` +
+          `👉 পেজে গিয়ে শুধু <b>Ctrl+V</b> দিয়ে <b>Publish</b> বাটনে চাপ দিন, স্যার!`,
+          { parse_mode: 'HTML' }
+        );
+      } else {
+        await ctx.reply(
+          `✅ <b>ফেসবুক পেজে সফলভাবে পোস্ট পাবলিশ হয়েছে, স্যার!</b>\n\n` +
+          `🔗 <b>পোস্ট লিংক:</b> <a href="${res.postUrl}">এখানে দেখুন</a>`,
+          { parse_mode: 'HTML' }
+        );
+      }
     } else {
-      await ctx.reply(`❌ পোস্ট পাবলিশে সমস্যা হয়েছে, স্যার: ${escapeHtml(res.error)}`);
+      await ctx.reply(`❌ পোস্ট প্রস্তুত করতে সমস্যা হয়েছে, স্যার: ${escapeHtml(res.error)}`);
     }
   });
 

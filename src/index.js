@@ -3,6 +3,7 @@ dotenv.config();
 
 import fs from 'fs';
 import net from 'net';
+import http from 'http';
 
 // Single-instance enforcement: prevents Telegram 409 Conflict and duplicate WhatsApp sockets
 const LOCK_PORT = 38472;
@@ -131,6 +132,27 @@ const status = getSystemStatus();
 console.log(`\n💻 System Ready on: ${status.hostname} (${status.os})`);
 console.log(`⏱️  Uptime: ${status.uptime} | Free RAM: ${status.freeMemory}`);
 console.log('🌟 Ahmad is standing by for Sir.\n');
+
+// Native HTTP Keep-Alive & Health-Check Server (for Hugging Face Spaces / Cloud deployment)
+const HTTP_PORT = process.env.PORT || 7860;
+const healthServer = http.createServer((req, res) => {
+  if (req.url === '/health' || req.url === '/') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      status: 'online',
+      agent: 'Ahmad (Personal Executive AI Assistant)',
+      telegram: bot ? 'connected' : 'disabled',
+      uptimeSeconds: Math.floor(process.uptime()),
+      timestamp: new Date().toISOString()
+    }));
+  } else {
+    res.writeHead(404);
+    res.end();
+  }
+});
+healthServer.listen(HTTP_PORT, '0.0.0.0', () => {
+  console.log(`🌐 Ahmad Cloud Keep-Alive Server active on port ${HTTP_PORT}`);
+});
 
 // Keep Node.js process alive indefinitely
 setInterval(() => {}, 1000 * 60 * 60);

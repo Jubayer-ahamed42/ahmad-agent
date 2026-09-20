@@ -8,23 +8,29 @@ $normalized = $AppName.ToLower().Trim()
 $targetCmd = ""
 
 if ($normalized -like "*chrome*" -or $normalized -like "*ক্রোম*" -or $normalized -like "*browser*" -or $normalized -like "*ব্রাউজার*") {
-    $targetCmd = "cmd.exe /c start chrome https://www.google.com"
+    $argPart = if ($Arguments) { " `"$Arguments`"" } else { "" }
+    $targetCmd = "cmd.exe /c start chrome$argPart"
 } elseif ($normalized -like "*notepad*" -or $normalized -like "*নোটপ্যাড*") {
-    $targetCmd = "notepad.exe"
+    $argPart = if ($Arguments) { " `"$Arguments`"" } else { "" }
+    $targetCmd = "notepad.exe$argPart"
 } elseif ($normalized -like "*calc*" -or $normalized -like "*ক্যালকুলেটর*") {
     $targetCmd = "calc.exe"
 } elseif ($normalized -like "*explorer*" -or $normalized -like "*ফাইল ম্যানেজার*" -or $normalized -like "*দিস পিসি*") {
-    $targetCmd = "explorer.exe"
+    $argPart = if ($Arguments) { " `"$Arguments`"" } else { "" }
+    $targetCmd = "explorer.exe$argPart"
 } elseif ($normalized -like "*taskmgr*" -or $normalized -like "*টাস্ক ম্যানেজার*") {
     $targetCmd = "taskmgr.exe"
 } elseif ($normalized -like "*cmd*" -or $normalized -like "*টার্মিনাল*" -or $normalized -like "*কমান্ড*") {
     $targetCmd = "cmd.exe /c start cmd.exe"
 } elseif ($normalized -like "*edge*" -or $normalized -like "*এজ*") {
-    $targetCmd = "cmd.exe /c start msedge"
+    $argPart = if ($Arguments) { " `"$Arguments`"" } else { "" }
+    $targetCmd = "cmd.exe /c start msedge$argPart"
 } elseif ($normalized -like "*brave*" -or $normalized -like "*ব্রেভ*") {
-    $targetCmd = "cmd.exe /c start brave"
+    $argPart = if ($Arguments) { " `"$Arguments`"" } else { "" }
+    $targetCmd = "cmd.exe /c start brave$argPart"
 } else {
-    $targetCmd = "cmd.exe /c start `"`" `"$AppName`""
+    $argPart = if ($Arguments) { " `"$Arguments`"" } else { "" }
+    $targetCmd = "cmd.exe /c start `"`" `"$AppName`"$argPart"
 }
 
 try {

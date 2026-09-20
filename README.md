@@ -1,4 +1,14 @@
-﻿# পার্সোনাল এক্সিকিউটিভ এআই সহকারী (Agent 1)
+---
+title: Ahmad Executive Agent
+emoji: 🤖
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
+# পার্সোনাল এক্সিকিউটিভ এআই সহকারী (Agent 1 - Ahmad)
 
 আপনার কম্পিউটার এবং মোবাইল থেকে পরিচালনার জন্য তৈরি একটি শক্তিশালী ব্যক্তিগত এআই সহকারী।
 

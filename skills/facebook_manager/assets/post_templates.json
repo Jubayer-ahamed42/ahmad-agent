@@ -1,0 +1,25 @@
+{
+  "templates": [
+    {
+      "category": "ai_tech_trends",
+      "hook": "🚀 শুধু চ্যাটিংয়ের দিন শেষ! ২০২৬ সালে এআই এজেন্ট যেভাবে নিজে নিজে কাজ সম্পন্ন করছে 🤖⚡",
+      "structure": [
+        "সমস্যা বা পরিবর্তনের বর্ণনা",
+        "৩টি মূল পার্থক্য / ফিচার",
+        "বাস্তব জীবনের প্রভাব",
+        "কল টু অ্যাকশন (প্রশ্ন)"
+      ],
+      "tags": ["#AI", "#ArtificialIntelligence", "#BeSmartWithAI", "#AIAgents", "#Automation"]
+    },
+    {
+      "category": "productivity_habits",
+      "hook": "💡 ভালো অভ্যাস বনাম খারাপ অভ্যাস: সফলতার গোপন রহস্য",
+      "structure": [
+        "ভূমিকা",
+        "৫টি ভালো অভ্যাস বনাম ৫টি খারাপ অভ্যাস",
+        "উপসংহার"
+      ],
+      "tags": ["#Productivity", "#GoodHabits", "#PersonalGrowth", "#BeSmartWithAI"]
+    }
+  ]
+}
