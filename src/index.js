@@ -61,7 +61,8 @@ if (token) {
     bot.launch(() => {
       console.log('✅ Ahmad Telegram Master Bot is ONLINE and listening!');
     }).catch((err) => {
-      console.error('⚠️ Telegram bot launch error (retrying in 5s):', err.message);
+      const sanitizedMsg = token ? (err.message || '').split(token).join('[REDACTED_TOKEN]') : (err.message || '');
+      console.error('⚠️ Telegram bot launch error (retrying in 5s):', sanitizedMsg);
       setTimeout(launchBot, 5000);
     });
   };
