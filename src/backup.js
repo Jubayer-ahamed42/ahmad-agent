@@ -1,10 +1,15 @@
 import { exec } from 'child_process';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const rootDir = path.resolve(__dirname, '..');
 
 export function runNightlyBackup() {
   return new Promise((resolve) => {
-    const backupDir = 'C:\\Personal Agent\\Agent 1\\backups';
+    const backupDir = process.env.BACKUP_DIR || path.join(rootDir, 'backups');
     if (!fs.existsSync(backupDir)) {
       fs.mkdirSync(backupDir, { recursive: true });
     }
@@ -13,7 +18,15 @@ export function runNightlyBackup() {
     const backupZip = path.join(backupDir, `backup_${timestamp}.zip`);
 
     // PowerShell command to compress folder including subagents, excluding node_modules and .env
-    const psCmd = `powershell.exe -NoProfile -Command "Compress-Archive -Path 'C:\\Personal Agent\\Agent 1\\rules', 'C:\\Personal Agent\\Agent 1\\src', 'C:\\Personal Agent\\Agent 1\\subagents', 'C:\\Personal Agent\\Agent 1\\package.json', 'C:\\Personal Agent\\Agent 1\\README.md' -DestinationPath '${backupZip}' -Force"`;
+    const pathsToZip = [
+      path.join(rootDir, 'rules'),
+      path.join(rootDir, 'src'),
+      path.join(rootDir, 'subagents'),
+      path.join(rootDir, 'package.json'),
+      path.join(rootDir, 'README.md')
+    ].map(p => `'${p}'`).join(', ');
+
+    const psCmd = `powershell.exe -NoProfile -Command "Compress-Archive -Path ${pathsToZip} -DestinationPath '${backupZip}' -Force"`;
 
     exec(psCmd, (err, stdout, stderr) => {
       if (err) {

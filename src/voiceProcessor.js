@@ -2,9 +2,14 @@ import { EdgeTTS } from 'node-edge-tts';
 import { exec } from 'child_process';
 import path from 'path';
 import fs from 'fs';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const DEFAULT_AUDIO_DIR = path.resolve(__dirname, '../audio_cache');
 
 export class VoiceProcessor {
-  constructor(audioDir = 'C:\\Personal Agent\\Agent 1\\audio_cache') {
+  constructor(audioDir = process.env.AUDIO_CACHE_DIR || DEFAULT_AUDIO_DIR) {
     this.audioDir = audioDir;
     if (!fs.existsSync(this.audioDir)) {
       fs.mkdirSync(this.audioDir, { recursive: true });

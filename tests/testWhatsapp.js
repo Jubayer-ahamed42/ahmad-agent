@@ -1,4 +1,4 @@
-import { WhatsAppService } from './whatsappBot.js';
+import { WhatsAppService } from '../src/whatsappBot.js';
 import fs from 'fs';
 
 console.log('====================================================');

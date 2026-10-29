@@ -1,10 +1,15 @@
-﻿import fs from 'fs';
+import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const DEFAULT_MANIFEST_PATH = path.resolve(__dirname, '../desktop_organize_manifest.json');
 
 export class DesktopOrganizer {
-  constructor(desktopPath = 'C:\\Users\\ASSDI\\Desktop') {
+  constructor(desktopPath = path.join(process.env.USERPROFILE || 'C:\\Users\\ASSDI', 'Desktop')) {
     this.desktopPath = desktopPath;
-    this.manifestPath = path.resolve('C:/Personal Agent/Agent 1/desktop_organize_manifest.json');
+    this.manifestPath = process.env.DESKTOP_MANIFEST_PATH || DEFAULT_MANIFEST_PATH;
     this.preservedFiles = [
       'desktop.ini',
       'sir_ai_talking_avatar.mp4'

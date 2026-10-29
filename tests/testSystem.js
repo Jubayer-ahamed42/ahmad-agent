@@ -1,4 +1,4 @@
-﻿import { getSystemStatus, captureScreenshot } from './systemController.js';
+import { getSystemStatus, captureScreenshot } from '../src/systemController.js';
 
 console.log('Testing System Status...');
 const status = getSystemStatus();

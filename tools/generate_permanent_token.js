@@ -1,5 +1,9 @@
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /**
  * Generate Permanent (Never-Expiring) Facebook Page Access Token
@@ -59,7 +63,7 @@ export async function getPermanentPageToken({ appId, appSecret, userToken, targe
   console.log(`[Meta Permanent Token Engine] Meta Token Expiry: ${isNever ? 'NEVER EXPIRES (LIFETIME)' : new Date(dataObj.expires_at * 1000).toLocaleString()}`);
 
   // Automatically save to .env
-  const envPath = path.resolve('C:/Personal Agent/Agent 1/.env');
+  const envPath = process.env.ENV_FILE_PATH || path.resolve(__dirname, '../.env');
   let envContent = fs.readFileSync(envPath, 'utf-8');
   
   if (envContent.includes('FB_PAGE_ACCESS_TOKEN=')) {

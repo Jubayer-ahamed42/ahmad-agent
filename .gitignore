@@ -1,12 +1,32 @@
+# Node modules and dependencies
 node_modules/
+
+# Environment and secrets (NEVER commit live secrets)
 .env
+.env.*
+!.env.example
+.env.local
+
+# Logs and runtime traces
 *.log
+logs/
+
+# Backups and snapshots
 backups/
+
+# System screenshots & screen captures
 screenshots/
+
+# Distribution and build output
 dist/
+
+# WhatsApp session auth credentials
 auth_info_baileys/
 whatsapp_qr.png
 whatsapp_cooldowns.json
-received_files/
-audio_cache/
 
+# Received files from Telegram/WhatsApp
+received_files/
+
+# Audio and generated media cache
+audio_cache/

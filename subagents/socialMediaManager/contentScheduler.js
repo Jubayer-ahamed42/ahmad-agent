@@ -1,10 +1,14 @@
-﻿import fs from 'fs';
+import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { FacebookService } from './facebookService.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export class ContentScheduler {
   constructor() {
-    this.calendarPath = path.resolve('C:/Personal Agent/Agent 1/subagents/socialMediaManager/content_calendar.json');
+    this.calendarPath = process.env.CONTENT_CALENDAR_PATH || path.join(__dirname, 'content_calendar.json');
     this.fb = new FacebookService();
   }
 

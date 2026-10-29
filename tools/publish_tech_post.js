@@ -1,6 +1,12 @@
 import dotenv from 'dotenv';
-dotenv.config({ path: 'C:/Personal Agent/Agent 1/.env' });
-import { FacebookService } from './subagents/socialMediaManager/facebookService.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: process.env.ENV_FILE_PATH || path.resolve(__dirname, '../.env') });
+
+import { FacebookService } from '../subagents/socialMediaManager/facebookService.js';
 
 const fb = new FacebookService();
 

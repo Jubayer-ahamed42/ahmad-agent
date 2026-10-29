@@ -1,4 +1,4 @@
-﻿import { SubagentManager } from './subagentManager.js';
+import { SubagentManager } from '../src/subagentManager.js';
 
 console.log('Testing Ahmad Video Delegation to Social Media Subagent...');
 const manager = new SubagentManager();

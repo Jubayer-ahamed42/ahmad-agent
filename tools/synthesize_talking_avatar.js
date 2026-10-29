@@ -1,12 +1,15 @@
-﻿import { Client, handle_file } from '@gradio/client';
+import { Client, handle_file } from '@gradio/client';
 import fs from 'fs';
 import path from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const DIR = process.env.OUTPUT_DIR || path.resolve(__dirname, '../subagents/socialMediaManager/output');
 
 const execAsync = promisify(exec);
-
-const DIR = 'C:\\Personal Agent\\Agent 1\\subagents\\socialMediaManager\\output';
 const imagePath = path.join(DIR, 'sir_face_avatar.jpg');
 
 const parts = [

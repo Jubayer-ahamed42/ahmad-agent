@@ -1,7 +1,12 @@
 import dotenv from 'dotenv';
-dotenv.config();
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-import { ExecutiveBrain } from './executiveBrain.js';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: process.env.ENV_FILE_PATH || path.resolve(__dirname, '../.env') });
+
+import { ExecutiveBrain } from '../src/executiveBrain.js';
 import fs from 'fs';
 
 console.log('Testing Ahmad 50-Year Veteran Executive Brain...');

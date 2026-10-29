@@ -3,10 +3,14 @@ import { exec } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 import { promisify } from 'util';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const execAsync = promisify(exec);
 
-const DIR = 'C:\\Personal Agent\\Agent 1\\subagents\\socialMediaManager\\output';
+const DIR = process.env.OUTPUT_DIR || path.join(__dirname, 'output');
 const photoPath = path.join(DIR, 'sir_profile.jpg');
 const voicePath = path.join(DIR, 'voice_ai_pros_cons.mp3');
 const finalVideoPath = path.join(DIR, 'ai_advantages_disadvantages_1min.mp4');

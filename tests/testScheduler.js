@@ -1,4 +1,4 @@
-﻿import { generateMorningBriefingText, generateNightSummaryText } from './scheduler.js';
+import { generateMorningBriefingText, generateNightSummaryText } from '../src/scheduler.js';
 
 console.log('--- 06:00 AM Morning Briefing Preview ---');
 console.log(generateMorningBriefingText());

@@ -1,5 +1,10 @@
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const projectRoot = path.resolve(__dirname, '..');
 
 // Phonetic & transliteration mapping between Bengali and common English terms
 const TRANSLITERATION_MAP = {
@@ -68,12 +73,13 @@ export function getCandidateSearchRoots(queryLower = '', customDir = null) {
   }
 
   // User standard folders
-  const userBase = 'C:\\Users\\ASSDI';
+  const userBase = process.env.USERPROFILE || 'C:\\Users\\ASSDI';
   const standardDirs = [
     path.join(userBase, 'Desktop'),
     path.join(userBase, 'Downloads'),
     path.join(userBase, 'Documents'),
-    'C:\\Personal Agent',
+    projectRoot,
+    process.env.AGENT_BASE_DIR || 'C:\\Personal Agent',
     'D:\\'
   ];
 

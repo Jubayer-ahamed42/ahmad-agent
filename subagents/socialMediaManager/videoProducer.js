@@ -2,10 +2,15 @@ import { EdgeTTS } from 'node-edge-tts';
 import { exec } from 'child_process';
 import path from 'path';
 import fs from 'fs';
+import { fileURLToPath } from 'url';
 import { DidService } from './didService.js';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const DEFAULT_OUTPUT_DIR = path.join(__dirname, 'output');
+
 export class VideoProducer {
-  constructor(outputDir = 'C:\\Personal Agent\\Agent 1\\subagents\\socialMediaManager\\output') {
+  constructor(outputDir = process.env.VIDEO_OUTPUT_DIR || DEFAULT_OUTPUT_DIR) {
     this.outputDir = outputDir;
     this.didService = new DidService();
     if (!fs.existsSync(this.outputDir)) {

@@ -1,11 +1,17 @@
-﻿import { exec } from 'child_process';
+import { exec } from 'child_process';
 import { promisify } from 'util';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const DIR = process.env.OUTPUT_DIR || path.resolve(__dirname, '../subagents/socialMediaManager/output');
 
 const execAsync = promisify(exec);
 
-const bgPath = 'C:\\Personal Agent\\Agent 1\\subagents\\socialMediaManager\\output\\sir_profile.jpg';
-const avatarVideoPath = 'C:\\Personal Agent\\Agent 1\\subagents\\socialMediaManager\\output\\sir_talking_avatar_raw.mp4';
-const previewFramePath = 'C:\\Personal Agent\\Agent 1\\subagents\\socialMediaManager\\output\\preview_composite.jpg';
+const bgPath = path.join(DIR, 'sir_profile.jpg');
+const avatarVideoPath = path.join(DIR, 'sir_talking_avatar_raw.mp4');
+const previewFramePath = path.join(DIR, 'preview_composite.jpg');
 const fontPath = 'C\\:/Windows/Fonts/Nirmala.ttc';
 
 const filterComplex = [

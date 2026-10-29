@@ -1,19 +1,23 @@
-﻿import dotenv from 'dotenv';
-dotenv.config({ path: 'C:/Personal Agent/Agent 1/.env' });
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import fs from 'fs';
-import path from 'path';
 import { Telegraf } from 'telegraf';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: process.env.ENV_FILE_PATH || path.resolve(__dirname, '../.env') });
 
 const execAsync = promisify(exec);
 
-const DIR = 'C:\\Personal Agent\\Agent 1\\subagents\\socialMediaManager\\output';
+const DIR = process.env.OUTPUT_DIR || path.resolve(__dirname, '../subagents/socialMediaManager/output');
 const bgPath = path.join(DIR, 'sir_profile.jpg');
 const avatarVideoPath = path.join(DIR, 'sir_talking_avatar_raw.mp4');
 const audioPath = path.join(DIR, 'voice_ai_pros_cons.mp3');
 const localVideoPath = path.join(DIR, 'Sir_AI_Talking_Avatar_Full.mp4');
-const desktopPath = 'C:\\Users\\ASSDI\\Desktop\\Sir_AI_Talking_Avatar.mp4';
+const desktopPath = path.join(process.env.USERPROFILE || 'C:\\Users\\ASSDI', 'Desktop', 'Sir_AI_Talking_Avatar.mp4');
 const fontPath = 'C\\:/Windows/Fonts/Nirmala.ttc';
 
 const filterComplex = [

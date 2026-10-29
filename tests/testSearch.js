@@ -1,5 +1,11 @@
-﻿import { searchLocalFiles } from './fileSearch.js';
+import { searchLocalFiles } from '../src/fileSearch.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-console.log('Testing File Search in C:\\Personal Agent...');
-const results = await searchLocalFiles('persona', 'C:\\Personal Agent');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const projectRoot = path.resolve(__dirname, '..');
+
+console.log('Testing File Search in project root...');
+const results = await searchLocalFiles('persona', projectRoot);
 console.log('Search Results:\n', JSON.stringify(results, null, 2));

@@ -5,6 +5,11 @@ import { searchLocalFiles } from './fileSearch.js';
 import { generateMorningBriefingText, generateNightSummaryText } from './scheduler.js';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const DEFAULT_RECEIVED_FILES_DIR = path.resolve(__dirname, '../received_files');
 
 function escapeHtml(text) {
   if (!text) return '';
@@ -726,7 +731,7 @@ export function createTelegramBot(token, configuredOwnerId = null, whatsappServi
     try {
       const doc = ctx.message.document;
       const fileLink = await ctx.telegram.getFileLink(doc.file_id);
-      const targetDir = 'C:\\Personal Agent\\Agent 1\\received_files';
+      const targetDir = process.env.RECEIVED_FILES_DIR || DEFAULT_RECEIVED_FILES_DIR;
       if (!fs.existsSync(targetDir)) fs.mkdirSync(targetDir, { recursive: true });
 
       const safeName = doc.file_name || `doc_${Date.now()}.bin`;
@@ -748,7 +753,7 @@ export function createTelegramBot(token, configuredOwnerId = null, whatsappServi
       const photos = ctx.message.photo;
       const highestRes = photos[photos.length - 1];
       const fileLink = await ctx.telegram.getFileLink(highestRes.file_id);
-      const targetDir = 'C:\\Personal Agent\\Agent 1\\received_files';
+      const targetDir = process.env.RECEIVED_FILES_DIR || DEFAULT_RECEIVED_FILES_DIR;
       if (!fs.existsSync(targetDir)) fs.mkdirSync(targetDir, { recursive: true });
 
       const filename = `photo_${Date.now()}.jpg`;

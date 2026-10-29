@@ -1,11 +1,17 @@
-import { getSystemStatus, captureScreenshot } from './systemController.js';
-import { searchLocalFiles } from './fileSearch.js';
-import { generateMorningBriefingText, generateNightSummaryText } from './scheduler.js';
-import { runNightlyBackup } from './backup.js';
-import { VoiceProcessor } from './voiceProcessor.js';
-import { WhatsAppService } from './whatsappBot.js';
-import { SubagentManager } from './subagentManager.js';
+import { getSystemStatus, captureScreenshot } from '../src/systemController.js';
+import { searchLocalFiles } from '../src/fileSearch.js';
+import { generateMorningBriefingText, generateNightSummaryText } from '../src/scheduler.js';
+import { runNightlyBackup } from '../src/backup.js';
+import { VoiceProcessor } from '../src/voiceProcessor.js';
+import { WhatsAppService } from '../src/whatsappBot.js';
+import { SubagentManager } from '../src/subagentManager.js';
 import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const projectRoot = path.resolve(__dirname, '..');
 
 console.log('====================================================');
 console.log('       FULL COMPREHENSIVE END-TO-END VERIFICATION');
@@ -29,9 +35,9 @@ try {
   results.push({ test: 'PC Screen Capture', status: 'FAIL', detail: e.message });
 }
 
-// 3. File Search
 try {
-  const files = await searchLocalFiles('persona.json', 'C:\\Personal Agent');
+  const searchRoot = process.env.AGENT_BASE_DIR || projectRoot;
+  const files = await searchLocalFiles('persona.json', searchRoot);
   results.push({ test: 'Local File Search Engine', status: 'PASS', detail: `Found ${files.length} matching files` });
 } catch (e) {
   results.push({ test: 'Local File Search Engine', status: 'FAIL', detail: e.message });

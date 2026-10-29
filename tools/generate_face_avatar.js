@@ -1,14 +1,19 @@
 import { Client, handle_file } from '@gradio/client';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const DIR = process.env.OUTPUT_DIR || path.resolve(__dirname, '../subagents/socialMediaManager/output');
 
 async function main() {
   console.log('Connecting to Wav2lip-ZeroGPU...');
   const app = await Client.connect('pragnakalp/Wav2lip-ZeroGPU');
 
-  const imagePath = 'C:\\Personal Agent\\Agent 1\\subagents\\socialMediaManager\\output\\sir_face_avatar.jpg';
-  const audioPath = 'C:\\Personal Agent\\Agent 1\\subagents\\socialMediaManager\\output\\test_short_5s.mp3';
-  const dest = 'C:\\Personal Agent\\Agent 1\\subagents\\socialMediaManager\\output\\sir_talking_avatar_close.mp4';
+  const imagePath = path.join(DIR, 'sir_face_avatar.jpg');
+  const audioPath = path.join(DIR, 'test_short_5s.mp3');
+  const dest = path.join(DIR, 'sir_talking_avatar_close.mp4');
 
   console.log('Synthesizing talking avatar on ZeroGPU...');
   const res = await app.predict('/run_infrence', [

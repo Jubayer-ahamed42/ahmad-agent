@@ -1,4 +1,4 @@
-﻿import { SubagentManager } from './subagentManager.js';
+import { SubagentManager } from '../src/subagentManager.js';
 
 console.log('Testing Subagent Manager under Ahmad...');
 const manager = new SubagentManager();

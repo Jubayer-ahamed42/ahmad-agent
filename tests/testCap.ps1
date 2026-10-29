@@ -1,4 +1,4 @@
-﻿$code = @"
+$code = @"
 using System;
 using System.Drawing;
 using System.Drawing.Imaging;
@@ -30,5 +30,8 @@ public class ScreenCap {
 }
 "@
 Add-Type -TypeDefinition $code -ReferencedAssemblies System.Drawing
-[ScreenCap]::Capture("C:\Personal Agent\Agent 1\screenshots\test_cap.png")
-Get-Item "C:\Personal Agent\Agent 1\screenshots\test_cap.png" | Select-Object Name, Length
+$screenshotsDir = Join-Path (Split-Path -Parent $PSScriptRoot) "screenshots"
+if (!(Test-Path $screenshotsDir)) { New-Item -ItemType Directory -Path $screenshotsDir -Force | Out-Null }
+$capFile = Join-Path $screenshotsDir "test_cap.png"
+[ScreenCap]::Capture($capFile)
+Get-Item $capFile | Select-Object Name, Length

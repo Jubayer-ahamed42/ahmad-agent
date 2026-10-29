@@ -1,5 +1,10 @@
 import dotenv from 'dotenv';
-dotenv.config({ path: 'C:/Personal Agent/Agent 1/.env' });
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: process.env.ENV_FILE_PATH || path.resolve(__dirname, '../.env') });
 import { Telegraf } from 'telegraf';
 
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
