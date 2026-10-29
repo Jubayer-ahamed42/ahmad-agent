@@ -1,9 +1,13 @@
-﻿import dotenv from 'dotenv';
+import dotenv from 'dotenv';
 dotenv.config();
 
 const key = process.env.GEMINI_API_KEY;
+if (!key) {
+  console.log('ℹ️ GEMINI_API_KEY is not defined in environment variables. Skipping diag test.');
+  process.exit(0);
+}
 
-console.log('Testing header x-goog-api-key with key:', key.slice(0, 8) + '...');
+console.log('Testing header x-goog-api-key with key:', `${key.slice(0, 6)}...[REDACTED]`);
 const res1 = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);
 console.log('Query param status:', res1.status, await res1.text());
 

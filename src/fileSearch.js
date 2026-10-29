@@ -1,4 +1,5 @@
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -67,19 +68,19 @@ export function getCandidateSearchRoots(queryLower = '', customDir = null) {
   const roots = [];
 
   // Google Drive detection
-  const gDrive = 'G:\\My Drive';
-  if (fs.existsSync(gDrive)) {
+  const gDrive = process.env.GOOGLE_DRIVE_PATH || (fs.existsSync('G:\\My Drive') ? 'G:\\My Drive' : null);
+  if (gDrive && fs.existsSync(gDrive)) {
     roots.push(gDrive);
   }
 
   // User standard folders
-  const userBase = process.env.USERPROFILE || 'C:\\Users\\ASSDI';
+  const userBase = process.env.USERPROFILE || os.homedir();
   const standardDirs = [
     path.join(userBase, 'Desktop'),
     path.join(userBase, 'Downloads'),
     path.join(userBase, 'Documents'),
     projectRoot,
-    process.env.AGENT_BASE_DIR || 'C:\\Personal Agent',
+    process.env.AGENT_BASE_DIR || projectRoot,
     'D:\\'
   ];
 

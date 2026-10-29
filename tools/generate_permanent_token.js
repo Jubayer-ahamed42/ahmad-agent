@@ -13,7 +13,7 @@ const __dirname = path.dirname(__filename);
  * 2. Exchanged for 60-day Long-Lived User Token
  * 3. GET /me/accounts with Long-Lived User Token -> Returns NEVER-EXPIRING Page Access Token!
  */
-export async function getPermanentPageToken({ appId, appSecret, userToken, targetPageId = '1347013991822233' }) {
+export async function getPermanentPageToken({ appId, appSecret, userToken, targetPageId = process.env.FB_PAGE_ID || '' }) {
   console.log('[Meta Permanent Token Engine] Step 1: Exchanging for 60-day Long-Lived User Token...');
   
   const exchangeUrl = `https://graph.facebook.com/v20.0/oauth/access_token?` +

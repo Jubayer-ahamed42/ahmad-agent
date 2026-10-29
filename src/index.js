@@ -47,12 +47,18 @@ whatsapp = new WhatsAppService({
   }
 });
 
+function sanitizeError(err) {
+  if (!err) return '';
+  const str = typeof err === 'string' ? err : (err.stack || err.message || String(err));
+  return token ? str.split(token).join('[REDACTED_TOKEN]') : str;
+}
+
 // Global crash prevention & resilience
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('[Resilience] Unhandled Rejection:', reason);
+  console.error('[Resilience] Unhandled Rejection:', sanitizeError(reason));
 });
 process.on('uncaughtException', (err) => {
-  console.error('[Resilience] Uncaught Exception:', err);
+  console.error('[Resilience] Uncaught Exception:', sanitizeError(err));
 });
 
 if (token) {
@@ -61,8 +67,7 @@ if (token) {
     bot.launch(() => {
       console.log('✅ Ahmad Telegram Master Bot is ONLINE and listening!');
     }).catch((err) => {
-      const sanitizedMsg = token ? (err.message || '').split(token).join('[REDACTED_TOKEN]') : (err.message || '');
-      console.error('⚠️ Telegram bot launch error (retrying in 5s):', sanitizedMsg);
+      console.error('⚠️ Telegram bot launch error (retrying in 5s):', sanitizeError(err));
       setTimeout(launchBot, 5000);
     });
   };

@@ -1,4 +1,5 @@
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -7,7 +8,7 @@ const __dirname = path.dirname(__filename);
 const DEFAULT_MANIFEST_PATH = path.resolve(__dirname, '../desktop_organize_manifest.json');
 
 export class DesktopOrganizer {
-  constructor(desktopPath = path.join(process.env.USERPROFILE || 'C:\\Users\\ASSDI', 'Desktop')) {
+  constructor(desktopPath = path.join(process.env.USERPROFILE || os.homedir(), 'Desktop')) {
     this.desktopPath = desktopPath;
     this.manifestPath = process.env.DESKTOP_MANIFEST_PATH || DEFAULT_MANIFEST_PATH;
     this.preservedFiles = [

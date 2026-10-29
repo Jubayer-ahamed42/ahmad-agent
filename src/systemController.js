@@ -1,7 +1,6 @@
 import { exec } from 'child_process';
 import os from 'os';
 import path from 'path';
-import screenshot from 'screenshot-desktop';
 
 // 1. Get PC Hardware & System Status
 export function getSystemStatus() {
@@ -62,6 +61,8 @@ export async function captureScreenshot(outputDir = path.join(process.cwd(), 'sc
 
   // Method B: Fallback to screenshot-desktop library
   try {
+    const screenshotModule = await import('screenshot-desktop');
+    const screenshot = screenshotModule.default || screenshotModule;
     const imgBuffer = await screenshot({ format: 'png' });
     await import('fs/promises').then(fsp => fsp.writeFile(filePath, imgBuffer));
     console.log(`[ScreenCapture] Fallback capture saved to: ${filePath}`);

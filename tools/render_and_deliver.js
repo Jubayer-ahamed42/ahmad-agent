@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import path from 'path';
+import os from 'os';
 import { fileURLToPath } from 'url';
 import { exec } from 'child_process';
 import { promisify } from 'util';
@@ -17,7 +18,7 @@ const bgPath = path.join(DIR, 'sir_profile.jpg');
 const avatarVideoPath = path.join(DIR, 'sir_talking_avatar_raw.mp4');
 const audioPath = path.join(DIR, 'voice_ai_pros_cons.mp3');
 const localVideoPath = path.join(DIR, 'Sir_AI_Talking_Avatar_Full.mp4');
-const desktopPath = path.join(process.env.USERPROFILE || 'C:\\Users\\ASSDI', 'Desktop', 'Sir_AI_Talking_Avatar.mp4');
+const desktopPath = path.join(process.env.USERPROFILE || os.homedir(), 'Desktop', 'Sir_AI_Talking_Avatar.mp4');
 const fontPath = 'C\\:/Windows/Fonts/Nirmala.ttc';
 
 const filterComplex = [
@@ -66,7 +67,7 @@ async function main() {
       `👤 <b>অ্যাভাটার:</b> স্যারের নিজস্ব রিয়েল-টাইম লিপ-সিঙ্ক টকিং অ্যাভাটার\n` +
       `⏱️ <b>দৈর্ঘ্য:</b> ৪৮.৫ সেকেন্ড (সম্পূর্ণ ভয়েস ওভারসহ)\n` +
       `📱 <b>ফরম্যাট:</b> ৯:১৬ ফুল এইচডি ভার্টিক্যাল রিল (১০৮০x১৯২০)\n` +
-      `🖥️ <b>ডেস্কটপ কপি:</b> <code>C:\\Users\\ASSDI\\Desktop\\Sir_AI_Talking_Avatar.mp4</code>\n\n` +
+      `🖥️ <b>ডেস্কটপ কপি:</b> <code>${desktopPath}</code>\n\n` +
       `— আপনার একান্ত বিশ্বস্ত এআই চিফ অব স্টাফ, <b>Ahmad</b>`;
 
     console.log('Sending video directly to Sir\'s Telegram chat...');

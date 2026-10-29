@@ -30,3 +30,6 @@ received_files/
 
 # Audio and generated media cache
 audio_cache/
+
+# Desktop organize manifest
+desktop_organize_manifest.json

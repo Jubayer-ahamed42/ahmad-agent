@@ -9,7 +9,11 @@ dotenv.config({ path: process.env.ENV_FILE_PATH || path.resolve(__dirname, '../.
 import { createTelegramBot } from '../src/telegramBot.js';
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
-console.log('Testing bot token:', token);
+console.log('Testing bot token:', token ? `${token.slice(0, 6)}...[REDACTED]` : 'undefined');
+if (!token) {
+  console.log('ℹ️ TELEGRAM_BOT_TOKEN is not defined in environment variables. Skipping launch test.');
+  process.exit(0);
+}
 const bot = createTelegramBot(token);
 
 try {
